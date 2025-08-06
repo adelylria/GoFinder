@@ -20,15 +20,18 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// Cache global de iconos
+var iconCache = make(map[string]fyne.Resource)
+
 var (
-	// Para ExtractIconExW
+	// DLLs y procedimientos para manejo de iconos en Windows
 	shell32           = windows.NewLazySystemDLL("shell32.dll")
 	extractIconExProc = shell32.NewProc("ExtractIconExW")
-	// Para GetDIBits
-	gdi32         = windows.NewLazySystemDLL("gdi32.dll")
-	procGetDIBits = gdi32.NewProc("GetDIBits")
+	gdi32             = windows.NewLazySystemDLL("gdi32.dll")
+	procGetDIBits     = gdi32.NewProc("GetDIBits")
 )
 
+// ExtractIcon extrae un icono de un archivo en Windows
 func ExtractIcon(path string, index int) (win.HICON, error) {
 	var largeIcon, smallIcon win.HICON
 
@@ -45,11 +48,12 @@ func ExtractIcon(path string, index int) (win.HICON, error) {
 		uintptr(1),
 	)
 	if ret == 0 {
-		return 0, errors.New("no icon extracted")
+		return 0, errors.New("no se pudo extraer el icono")
 	}
 	return largeIcon, nil
 }
 
+// SplitIconLocation separa la ruta del icono y su índice
 func SplitIconLocation(iconLocation string) (string, int) {
 	parts := strings.Split(iconLocation, ",")
 	iconPath := parts[0]
@@ -63,44 +67,59 @@ func SplitIconLocation(iconLocation string) (string, int) {
 	return iconPath, iconIndex
 }
 
+// LoadAppIcon carga el icono de una aplicación, usando caché si está disponible
 func LoadAppIcon(app models.Application) fyne.Resource {
+	// Verificar si ya está en caché
+	if cached, ok := iconCache[app.ID]; ok {
+		return cached
+	}
+
+	var resource fyne.Resource
+
+	// Intentar cargar desde archivo de imagen
 	ext := strings.ToLower(filepath.Ext(app.IconPath))
-	if ext == ".ico" || ext == ".png" {
+	if ext == ".ico" || ext == ".png" || ext == ".jpg" || ext == ".jpeg" {
 		file, err := os.Open(app.IconPath)
 		if err == nil {
 			defer file.Close()
 			img, _, err := image.Decode(file)
 			if err == nil {
 				var buf bytes.Buffer
-				png.Encode(&buf, img)
-				return fyne.NewStaticResource(app.Name+".png", buf.Bytes())
+				if err := png.Encode(&buf, img); err == nil {
+					resource = fyne.NewStaticResource(app.Name+".png", buf.Bytes())
+				}
 			}
 		}
 	}
 
-	if runtime.GOOS == "windows" && app.IconPath != "" {
+	// Para Windows: extraer icono de archivos EXE, DLL, etc.
+	if resource == nil && runtime.GOOS == "windows" && app.IconPath != "" {
 		hIcon, err := ExtractIcon(app.IconPath, app.IconIdx)
 		if err == nil && hIcon != 0 {
-			return LoadIconFromHICON(hIcon, app.Name)
+			resource = LoadIconFromHICON(hIcon, app.Name)
 		}
 	}
 
-	return nil
+	// Almacenar en caché si se encontró un recurso válido
+	if resource != nil {
+		iconCache[app.ID] = resource
+	}
+
+	return resource
 }
 
+// IconHandleToImage convierte un HICON de Windows en una imagen Go
 func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 	var iconInfo win.ICONINFO
-	ok := win.GetIconInfo(hIcon, &iconInfo)
-	if !ok {
-		return nil, errors.New("GetIconInfo failed")
+	if !win.GetIconInfo(hIcon, &iconInfo) {
+		return nil, errors.New("error al obtener información del icono")
 	}
 	defer win.DeleteObject(win.HGDIOBJ(iconInfo.HbmColor))
 	defer win.DeleteObject(win.HGDIOBJ(iconInfo.HbmMask))
 
 	var bmpInfo win.BITMAP
-	ret := win.GetObject(win.HGDIOBJ(iconInfo.HbmColor), unsafe.Sizeof(bmpInfo), unsafe.Pointer(&bmpInfo))
-	if ret == 0 {
-		return nil, errors.New("GetObject failed")
+	if win.GetObject(win.HGDIOBJ(iconInfo.HbmColor), unsafe.Sizeof(bmpInfo), unsafe.Pointer(&bmpInfo)) == 0 {
+		return nil, errors.New("error al obtener información del bitmap")
 	}
 	width := int(bmpInfo.BmWidth)
 	height := int(bmpInfo.BmHeight)
@@ -119,7 +138,7 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 	var bi win.BITMAPINFOHEADER
 	bi.BiSize = uint32(unsafe.Sizeof(bi))
 	bi.BiWidth = int32(width)
-	bi.BiHeight = int32(-height)
+	bi.BiHeight = int32(-height) // Negativo para top-down
 	bi.BiPlanes = 1
 	bi.BiBitCount = 32
 	bi.BiCompression = win.BI_RGB
@@ -127,7 +146,7 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 	bufSize := width * height * 4
 	buf := make([]byte, bufSize)
 
-	ret2, _, _ := procGetDIBits.Call(
+	ret, _, _ := procGetDIBits.Call(
 		uintptr(hdcMem),
 		uintptr(iconInfo.HbmColor),
 		0,
@@ -136,24 +155,26 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 		uintptr(unsafe.Pointer(&bi)),
 		win.DIB_RGB_COLORS,
 	)
-	if ret2 == 0 {
-		return nil, errors.New("GetDIBits failed")
+	if ret == 0 {
+		return nil, errors.New("error al obtener bits de imagen")
 	}
 
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	// Copiar datos de píxeles a la imagen
+	for y := range height {
+		for x := range width {
 			i := (y*width + x) * 4
-			b := buf[i+0]
+			b := buf[i]
 			g := buf[i+1]
 			r := buf[i+2]
 			a := buf[i+3]
-			img.SetRGBA(x, y, color.RGBA{r, g, b, a})
+			img.SetRGBA(x, y, color.RGBA{R: r, G: g, B: b, A: a})
 		}
 	}
 
 	return img, nil
 }
 
+// LoadIconFromHICON convierte un HICON en un recurso Fyne
 func LoadIconFromHICON(hIcon win.HICON, appName string) fyne.Resource {
 	img, err := IconHandleToImage(hIcon)
 	if err != nil {
@@ -161,8 +182,7 @@ func LoadIconFromHICON(hIcon win.HICON, appName string) fyne.Resource {
 	}
 
 	var buf bytes.Buffer
-	err = png.Encode(&buf, img)
-	if err != nil {
+	if err := png.Encode(&buf, img); err != nil {
 		return nil
 	}
 

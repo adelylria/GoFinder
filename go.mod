@@ -5,6 +5,7 @@ go 1.24.5
 require (
 	fyne.io/fyne/v2 v2.6.2
 	github.com/go-ole/go-ole v1.2.6
+	github.com/google/uuid v1.6.0
 )
 
 require (

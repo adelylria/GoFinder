@@ -66,46 +66,47 @@ func findWindowsApplications() []models.Application {
 }
 
 func resolveShortcut(path string) models.Application {
+	app := models.NewApplication()
 	ole.CoInitialize(0)
 	defer ole.CoUninitialize()
 
 	shell, err := oleutil.CreateObject("WScript.Shell")
 	if err != nil {
 		fmt.Println("Error creando WScript.Shell:", err)
-		return models.Application{}
+		return app
 	}
 	defer shell.Release()
 
 	wshell, err := shell.QueryInterface(ole.IID_IDispatch)
 	if err != nil {
 		fmt.Println("Error obteniendo IDispatch:", err)
-		return models.Application{}
+		return app
 	}
 	defer wshell.Release()
 
 	link, err := oleutil.CallMethod(wshell, "CreateShortcut", path)
 	if err != nil {
 		fmt.Println("Error creando Shortcut COM object:", err)
-		return models.Application{}
+		return app
 	}
 	defer link.Clear()
 	dispatch := link.ToIDispatch()
 
 	target, err1 := oleutil.GetProperty(dispatch, "TargetPath")
 	iconLoc, err2 := oleutil.GetProperty(dispatch, "IconLocation")
-	if err1 != nil {
-		fmt.Println("Error obteniendo TargetPath:", err1)
-	}
-	if err2 != nil {
-		fmt.Println("Error obteniendo IconLocation:", err2)
-	}
 
 	name := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-	return models.Application{
-		Name: name,
-		Exec: target.ToString(),
-		Icon: iconLoc.ToString(), // aún sin expandir ni separar
+	app.Name = name
+
+	if err1 == nil && target.VT != ole.VT_NULL {
+		app.Exec = target.ToString()
 	}
+
+	if err2 == nil && iconLoc.VT != ole.VT_NULL {
+		app.Icon = iconLoc.ToString()
+	}
+
+	return app
 }
 
 // ----------------------------------------
@@ -140,27 +141,24 @@ func findLinuxApplications() []models.Application {
 }
 
 func parseDesktopFile(path string) models.Application {
+	app := models.NewApplication()
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return models.Application{}
+		return app
 	}
 	lines := strings.Split(string(data), "\n")
-	var name, exec, icon string
 
 	for _, line := range lines {
-		if strings.HasPrefix(line, "Name=") && name == "" {
-			name = strings.TrimPrefix(line, "Name=")
-		} else if strings.HasPrefix(line, "Exec=") && exec == "" {
-			exec = strings.TrimPrefix(line, "Exec=")
-			exec = strings.Split(exec, " ")[0] // quitar argumentos tipo %U
-		} else if strings.HasPrefix(line, "Icon=") && icon == "" {
-			icon = strings.TrimPrefix(line, "Icon=")
+		if strings.HasPrefix(line, "Name=") && app.Name == "" {
+			app.Name = strings.TrimPrefix(line, "Name=")
+		} else if strings.HasPrefix(line, "Exec=") && app.Exec == "" {
+			exec := strings.TrimPrefix(line, "Exec=")
+			// Quitar parámetros y variables (%F, %U, etc.)
+			app.Exec = strings.Split(exec, " ")[0]
+		} else if strings.HasPrefix(line, "Icon=") && app.Icon == "" {
+			app.Icon = strings.TrimPrefix(line, "Icon=")
 		}
 	}
 
-	return models.Application{
-		Name: name,
-		Exec: exec,
-		Icon: icon,
-	}
+	return app
 }
