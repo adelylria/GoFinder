@@ -3,6 +3,7 @@ package ui
 import (
 	"log"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -15,13 +16,41 @@ import (
 	"github.com/adelylria/GoFinder/models"
 )
 
+// KeyEventInterceptor intercepta eventos de teclado para manejar la navegación
+type KeyEventInterceptor struct {
+	widget.Entry
+	onKeyDown func()
+	onKeyUp   func()
+}
+
+func NewKeyEventInterceptor() *KeyEventInterceptor {
+	e := &KeyEventInterceptor{}
+	e.ExtendBaseWidget(e)
+	return e
+}
+
+func (e *KeyEventInterceptor) TypedKey(key *fyne.KeyEvent) {
+	switch key.Name {
+	case fyne.KeyDown:
+		if e.onKeyDown != nil {
+			e.onKeyDown()
+		}
+	case fyne.KeyUp:
+		if e.onKeyUp != nil {
+			e.onKeyUp()
+		}
+	default:
+		e.Entry.TypedKey(key)
+	}
+}
+
 func RunLauncher(apps []models.Application) {
 	myApp := app.New()
 	myWindow := myApp.NewWindow("Buscador")
 	myWindow.SetFixedSize(true)
 	myWindow.Resize(fyne.NewSize(600, 500))
 
-	input := widget.NewEntry()
+	input := NewKeyEventInterceptor()
 	input.SetPlaceHolder("Buscar aplicación...")
 
 	// Crear mapa de aplicaciones por ID
@@ -62,9 +91,8 @@ func RunLauncher(apps []models.Application) {
 
 		if err := logic.RunApplication(app); err != nil {
 			log.Printf("Error al ejecutar %s: %v", app.Name, err)
-		} else {
-			//myWindow.Close()
 		}
+		// if i want put else to hide
 	}
 
 	// Inicializar con todos los resultados
@@ -126,23 +154,30 @@ func RunLauncher(apps []models.Application) {
 		},
 	)
 
-	// Manejar eventos de teclado
+	// Configurar callbacks para flechas
+	input.onKeyDown = func() {
+		if selectedIndex < len(filteredIDs)-1 {
+			selectedIndex++
+			listWidget.Refresh()
+			listWidget.ScrollTo(selectedIndex)
+		}
+	}
+
+	input.onKeyUp = func() {
+		if selectedIndex > 0 {
+			selectedIndex--
+			listWidget.Refresh()
+			listWidget.ScrollTo(selectedIndex)
+		}
+	}
+
+	// Manejar eventos de teclado globales
 	handleKeyEvent := func(ev *fyne.KeyEvent) {
 		switch ev.Name {
-		case fyne.KeyUp:
-			if selectedIndex > 0 {
-				selectedIndex--
-				listWidget.Refresh()
-				listWidget.ScrollTo(selectedIndex)
-			}
-		case fyne.KeyDown:
-			if selectedIndex < len(filteredIDs)-1 {
-				selectedIndex++
-				listWidget.Refresh()
-				listWidget.ScrollTo(selectedIndex)
-			}
 		case fyne.KeyReturn, fyne.KeyEnter:
 			executeSelected()
+		case fyne.KeyEscape:
+			myWindow.Close()
 		}
 	}
 
@@ -153,7 +188,10 @@ func RunLauncher(apps []models.Application) {
 	input.OnSubmitted = func(text string) {
 		executeSelected()
 	}
+
+	// Capturar eventos de teclado a nivel de ventana
 	myWindow.Canvas().SetOnTypedKey(handleKeyEvent)
+
 	listWidget.OnSelected = func(id widget.ListItemID) {
 		selectedIndex = id
 		executeSelected()
@@ -161,6 +199,13 @@ func RunLauncher(apps []models.Application) {
 
 	content := container.NewBorder(input, nil, nil, nil, listWidget)
 	myWindow.SetContent(content)
+
+	// Enfocar el input después de un breve retraso
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		myWindow.Canvas().Focus(input)
+	}()
+
 	myWindow.ShowAndRun()
 }
 
