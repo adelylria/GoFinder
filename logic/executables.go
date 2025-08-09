@@ -146,9 +146,9 @@ func parseDesktopFile(path string) models.Application {
 	if err != nil {
 		return app
 	}
-	lines := strings.Split(string(data), "\n")
+	lines := strings.SplitSeq(string(data), "\n")
 
-	for _, line := range lines {
+	for line := range lines {
 		if strings.HasPrefix(line, "Name=") && app.Name == "" {
 			app.Name = strings.TrimPrefix(line, "Name=")
 		} else if strings.HasPrefix(line, "Exec=") && app.Exec == "" {

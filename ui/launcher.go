@@ -16,12 +16,253 @@ import (
 	"github.com/adelylria/GoFinder/models"
 )
 
+type Launcher struct {
+	window        fyne.Window
+	input         *KeyEventInterceptor
+	list          *widget.List
+	appMap        map[string]models.Application
+	filteredIDs   []string
+	selectedIndex int
+}
+
 // KeyEventInterceptor intercepta eventos de teclado para manejar la navegación
 type KeyEventInterceptor struct {
 	widget.Entry
 	onKeyDown func()
 	onKeyUp   func()
 }
+
+func NewLauncher(apps []models.Application) *Launcher {
+	myApp := app.New()
+	window := myApp.NewWindow("GoFinder")
+	window.SetFixedSize(true)
+	window.Resize(fyne.NewSize(600, 500))
+
+	appMap := createAppMap(apps)
+
+	return &Launcher{
+		window:        window,
+		appMap:        appMap,
+		filteredIDs:   getAllAppIDs(appMap),
+		selectedIndex: 0,
+	}
+}
+
+// Inicia y muestra la interfaz de usuario
+func (l *Launcher) Run() {
+	l.initializeUI()
+	l.window.ShowAndRun()
+}
+
+// Configura todos los componentes de la interfaz
+func (l *Launcher) initializeUI() {
+	l.input = l.createInputField()
+	l.list = l.createAppList()
+	l.setupEventHandlers()
+
+	content := container.NewBorder(l.input, nil, nil, nil, l.list)
+	l.window.SetContent(content)
+
+	l.scheduleFocusInput()
+}
+
+// Crea y configura el campo de búsqueda
+func (l *Launcher) createInputField() *KeyEventInterceptor {
+	input := NewKeyEventInterceptor()
+	input.SetPlaceHolder("Buscar aplicación...")
+	return input
+}
+
+// Crea la lista de aplicaciones
+func (l *Launcher) createAppList() *widget.List {
+	return widget.NewList(
+		l.getItemCount,
+		l.createListItem,
+		l.updateListItem,
+	)
+}
+
+// Configura todos los manejadores de eventos
+func (l *Launcher) setupEventHandlers() {
+	// Configurar navegación con flechas
+	l.input.onKeyDown = l.handleKeyDown
+	l.input.onKeyUp = l.handleKeyUp
+
+	// Eventos de cambio y envío
+	l.input.OnChanged = l.handleInputChange
+	l.input.OnSubmitted = l.handleInputSubmit
+
+	// Eventos globales de teclado
+	l.window.Canvas().SetOnTypedKey(l.handleGlobalKeyEvent)
+
+	// Selección en lista
+	l.list.OnSelected = l.handleListSelection
+}
+
+// Programa el enfoque en el campo de entrada
+func (l *Launcher) scheduleFocusInput() {
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		l.window.Canvas().Focus(l.input)
+	}()
+}
+
+// --- Funciones para el widget.List ---
+
+func (l *Launcher) getItemCount() int {
+	return len(l.filteredIDs)
+}
+
+func (l *Launcher) createListItem() fyne.CanvasObject {
+	bg := canvas.NewRectangle(theme.HoverColor())
+	bg.Hide()
+
+	icon := widget.NewIcon(nil)
+	icon.Resize(fyne.NewSize(32, 32))
+
+	label := widget.NewLabel("")
+	label.TextStyle = fyne.TextStyle{Bold: true}
+
+	return container.NewStack(
+		bg,
+		container.NewHBox(icon, label),
+	)
+}
+
+func (l *Launcher) updateListItem(id widget.ListItemID, obj fyne.CanvasObject) {
+	if id >= len(l.filteredIDs) {
+		return
+	}
+
+	appID := l.filteredIDs[id]
+	app := l.appMap[appID]
+	stack := obj.(*fyne.Container)
+
+	bg := stack.Objects[0].(*canvas.Rectangle)
+	contentContainer := stack.Objects[1].(*fyne.Container)
+	icon := contentContainer.Objects[0].(*widget.Icon)
+	label := contentContainer.Objects[1].(*widget.Label)
+
+	label.SetText(app.Name)
+	l.setAppIcon(icon, app)
+	l.highlightSelectedItem(bg, id)
+}
+
+// --- Handlers de eventos ---
+
+func (l *Launcher) handleKeyDown() {
+	if l.selectedIndex < len(l.filteredIDs)-1 {
+		l.selectedIndex++
+		l.list.Refresh()
+		l.list.ScrollTo(l.selectedIndex)
+	}
+}
+
+func (l *Launcher) handleKeyUp() {
+	if l.selectedIndex > 0 {
+		l.selectedIndex--
+		l.list.Refresh()
+		l.list.ScrollTo(l.selectedIndex)
+	}
+}
+
+func (l *Launcher) handleInputChange(text string) {
+	l.filteredIDs = getFilteredIDs(text, l.appMap)
+	l.selectedIndex = 0
+	l.list.Refresh()
+}
+
+func (l *Launcher) handleInputSubmit(text string) {
+	l.executeSelectedApp()
+}
+
+func (l *Launcher) handleGlobalKeyEvent(ev *fyne.KeyEvent) {
+	switch ev.Name {
+	case fyne.KeyReturn, fyne.KeyEnter:
+		l.executeSelectedApp()
+	case fyne.KeyEscape:
+		l.window.Close()
+	}
+}
+
+func (l *Launcher) handleListSelection(id widget.ListItemID) {
+	l.selectedIndex = id
+	l.executeSelectedApp()
+}
+
+// --- Funciones de lógica de aplicación ---
+
+func (l *Launcher) executeSelectedApp() {
+	if len(l.filteredIDs) == 0 {
+		return
+	}
+
+	if l.selectedIndex >= len(l.filteredIDs) {
+		l.selectedIndex = len(l.filteredIDs) - 1
+	}
+
+	appID := l.filteredIDs[l.selectedIndex]
+	app := l.appMap[appID]
+	log.Printf("Ejecutando: %s (%s)", app.Name, app.Exec)
+
+	if err := logic.RunApplication(app); err != nil {
+		log.Printf("Error al ejecutar %s: %v", app.Name, err)
+	}
+}
+
+// --- Funciones auxiliares ---
+
+func createAppMap(apps []models.Application) map[string]models.Application {
+	appMap := make(map[string]models.Application)
+	for _, app := range apps {
+		appMap[app.ID] = app
+	}
+	return appMap
+}
+
+func getAllAppIDs(appMap map[string]models.Application) []string {
+	ids := make([]string, 0, len(appMap))
+	for id := range appMap {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func getFilteredIDs(filter string, appMap map[string]models.Application) []string {
+	if filter == "" {
+		return getAllAppIDs(appMap)
+	}
+
+	var ids []string
+	lowerFilter := strings.ToLower(filter)
+
+	for id, app := range appMap {
+		if strings.Contains(strings.ToLower(app.Name), lowerFilter) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func (l *Launcher) setAppIcon(icon *widget.Icon, app models.Application) {
+	if iconRes := logic.LoadAppIcon(app); iconRes != nil {
+		icon.SetResource(iconRes)
+		icon.Show()
+	} else {
+		icon.Hide()
+	}
+}
+
+func (l *Launcher) highlightSelectedItem(bg *canvas.Rectangle, id int) {
+	if id == l.selectedIndex {
+		bg.Show()
+	} else {
+		bg.Hide()
+	}
+	bg.Refresh()
+}
+
+// --- Implementación de KeyEventInterceptor ---
 
 func NewKeyEventInterceptor() *KeyEventInterceptor {
 	e := &KeyEventInterceptor{}
@@ -44,180 +285,8 @@ func (e *KeyEventInterceptor) TypedKey(key *fyne.KeyEvent) {
 	}
 }
 
+// Punto de entrada para iniciar el lanzador
 func RunLauncher(apps []models.Application) {
-	myApp := app.New()
-	myWindow := myApp.NewWindow("Buscador")
-	myWindow.SetFixedSize(true)
-	myWindow.Resize(fyne.NewSize(600, 500))
-
-	input := NewKeyEventInterceptor()
-	input.SetPlaceHolder("Buscar aplicación...")
-
-	// Crear mapa de aplicaciones por ID
-	appMap := make(map[string]models.Application)
-	for _, app := range apps {
-		appMap[app.ID] = app
-	}
-
-	// Variables de estado
-	var (
-		filteredIDs   []string
-		selectedIndex int
-		listWidget    *widget.List
-	)
-
-	// Actualizar lista filtrada
-	updateFilter := func() {
-		filteredIDs = getFilteredIDs(input.Text, appMap)
-		selectedIndex = 0 // Resetear selección al filtrar
-		if listWidget != nil {
-			listWidget.Refresh()
-		}
-	}
-
-	// Ejecutar la aplicación seleccionada
-	executeSelected := func() {
-		if len(filteredIDs) == 0 {
-			return
-		}
-
-		if selectedIndex >= len(filteredIDs) {
-			selectedIndex = len(filteredIDs) - 1
-		}
-
-		appID := filteredIDs[selectedIndex]
-		app := appMap[appID]
-		log.Printf("Ejecutando: %s (%s)", app.Name, app.Exec)
-
-		if err := logic.RunApplication(app); err != nil {
-			log.Printf("Error al ejecutar %s: %v", app.Name, err)
-		}
-		// if i want put else to hide
-	}
-
-	// Inicializar con todos los resultados
-	updateFilter()
-
-	// Crear lista personalizada con resaltado de selección
-	listWidget = widget.NewList(
-		func() int {
-			return len(filteredIDs)
-		},
-		func() fyne.CanvasObject {
-			// Fondo para resaltar selección (invisible por defecto)
-			bg := canvas.NewRectangle(theme.HoverColor())
-			bg.Hide()
-
-			icon := widget.NewIcon(nil)
-			icon.Resize(fyne.NewSize(32, 32))
-
-			label := widget.NewLabel("")
-			label.TextStyle = fyne.TextStyle{Bold: true}
-
-			// Contenedor con fondo para resaltado
-			return container.NewStack(
-				bg,
-				container.NewHBox(icon, label),
-			)
-		},
-		func(id widget.ListItemID, obj fyne.CanvasObject) {
-			if id >= len(filteredIDs) {
-				return
-			}
-
-			appID := filteredIDs[id]
-			app := appMap[appID]
-
-			// Obtener los elementos de la interfaz
-			stack := obj.(*fyne.Container)
-			bg := stack.Objects[0].(*canvas.Rectangle)
-			contentContainer := stack.Objects[1].(*fyne.Container)
-
-			icon := contentContainer.Objects[0].(*widget.Icon)
-			label := contentContainer.Objects[1].(*widget.Label)
-
-			label.SetText(app.Name)
-			if iconRes := logic.LoadAppIcon(app); iconRes != nil {
-				icon.SetResource(iconRes)
-				icon.Show()
-			} else {
-				icon.Hide()
-			}
-
-			// Resaltar elemento seleccionado
-			if id == selectedIndex {
-				bg.Show()
-			} else {
-				bg.Hide()
-			}
-			bg.Refresh()
-		},
-	)
-
-	// Configurar callbacks para flechas
-	input.onKeyDown = func() {
-		if selectedIndex < len(filteredIDs)-1 {
-			selectedIndex++
-			listWidget.Refresh()
-			listWidget.ScrollTo(selectedIndex)
-		}
-	}
-
-	input.onKeyUp = func() {
-		if selectedIndex > 0 {
-			selectedIndex--
-			listWidget.Refresh()
-			listWidget.ScrollTo(selectedIndex)
-		}
-	}
-
-	// Manejar eventos de teclado globales
-	handleKeyEvent := func(ev *fyne.KeyEvent) {
-		switch ev.Name {
-		case fyne.KeyReturn, fyne.KeyEnter:
-			executeSelected()
-		case fyne.KeyEscape:
-			myWindow.Close()
-		}
-	}
-
-	// Configurar eventos de teclado
-	input.OnChanged = func(text string) {
-		updateFilter()
-	}
-	input.OnSubmitted = func(text string) {
-		executeSelected()
-	}
-
-	// Capturar eventos de teclado a nivel de ventana
-	myWindow.Canvas().SetOnTypedKey(handleKeyEvent)
-
-	listWidget.OnSelected = func(id widget.ListItemID) {
-		selectedIndex = id
-		executeSelected()
-	}
-
-	content := container.NewBorder(input, nil, nil, nil, listWidget)
-	myWindow.SetContent(content)
-
-	// Enfocar el input después de un breve retraso
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		myWindow.Canvas().Focus(input)
-	}()
-
-	myWindow.ShowAndRun()
-}
-
-// getFilteredIDs devuelve los IDs de aplicaciones que coinciden con el filtro
-func getFilteredIDs(filter string, apps map[string]models.Application) []string {
-	var ids []string
-	lowerFilter := strings.ToLower(filter)
-
-	for id, app := range apps {
-		if filter == "" || strings.Contains(strings.ToLower(app.Name), lowerFilter) {
-			ids = append(ids, id)
-		}
-	}
-	return ids
+	launcher := NewLauncher(apps)
+	launcher.Run()
 }
