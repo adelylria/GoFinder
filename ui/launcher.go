@@ -34,11 +34,8 @@ type Launcher struct {
 // NewLauncher crea el lanzador e inyecta el theme core.
 func NewLauncher(apps []models.Application) *Launcher {
 	myApp := app.New()
-	var appIcon fyne.Resource
-	if iconBytes := resource.GetAppIcon(); iconBytes != nil {
-		appIcon = fyne.NewStaticResource("GoFinder.ico", iconBytes)
-		myApp.SetIcon(appIcon)
-	}
+
+	myApp.SetIcon(resource.GetAppIcon())
 	window := myApp.NewWindow("GoFinder")
 
 	// Theme central
