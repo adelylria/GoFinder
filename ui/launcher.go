@@ -1,50 +1,72 @@
 package ui
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/adelylria/GoFinder/core/hotkey"
+	"github.com/adelylria/GoFinder/core/resource"
+	"github.com/adelylria/GoFinder/core/ui"
 	"github.com/adelylria/GoFinder/logic"
 	"github.com/adelylria/GoFinder/models"
 )
 
+// Launcher es el componente principal de la UI del lanzador.
+// Ahora incorpora el ThemeConfig (core) para construir los widgets
+// con apariencia y tamaños centralizados.
 type Launcher struct {
 	window        fyne.Window
-	input         *KeyEventInterceptor
+	input         *hotkey.KeyEventInterceptor
 	list          *widget.List
 	appMap        map[string]models.Application
 	filteredIDs   []string
 	selectedIndex int
+	theme         *ui.ThemeConfig
 }
 
-// KeyEventInterceptor intercepta eventos de teclado para manejar la navegación
-type KeyEventInterceptor struct {
-	widget.Entry
-	onKeyDown func()
-	onKeyUp   func()
-}
-
+// NewLauncher crea el lanzador e inyecta el theme core.
 func NewLauncher(apps []models.Application) *Launcher {
 	myApp := app.New()
+	var appIcon fyne.Resource
+	if iconBytes := resource.GetAppIcon(); iconBytes != nil {
+		appIcon = fyne.NewStaticResource("GoFinder.ico", iconBytes)
+		myApp.SetIcon(appIcon)
+	}
 	window := myApp.NewWindow("GoFinder")
-	window.SetFixedSize(true)
-	window.Resize(fyne.NewSize(600, 500))
+
+	// Theme central
+	t := ui.DefaultTheme()
+	t.ApplyToWindow(window)
 
 	appMap := createAppMap(apps)
+
+	appState := &models.AppState{
+		Window:  window,
+		Visible: true,
+	}
+
+	// Configurar el HotkeyManager
+	hm := &hotkey.HotkeyManager{
+		ToggleHandler: func() {
+			toggleWindowVisibility(appState)
+		},
+		ExitHandler: exitApplication,
+	}
+	hm.ListenHotkeys()
 
 	return &Launcher{
 		window:        window,
 		appMap:        appMap,
 		filteredIDs:   getAllAppIDs(appMap),
 		selectedIndex: 0,
+		theme:         t,
 	}
 }
 
@@ -60,33 +82,44 @@ func (l *Launcher) initializeUI() {
 	l.list = l.createAppList()
 	l.setupEventHandlers()
 
-	content := container.NewBorder(l.input, nil, nil, nil, l.list)
+	content := l.theme.NewBorderWithInputTop(l.input, l.list)
 	l.window.SetContent(content)
 
 	l.scheduleFocusInput()
 }
 
-// Crea y configura el campo de búsqueda
-func (l *Launcher) createInputField() *KeyEventInterceptor {
-	input := NewKeyEventInterceptor()
-	input.SetPlaceHolder("Buscar aplicación...")
+// Crea y configura el campo de búsqueda usando el theme
+func (l *Launcher) createInputField() *hotkey.KeyEventInterceptor {
+	input := l.theme.NewStyledSearchEntry()
 	return input
 }
 
-// Crea la lista de aplicaciones
+// Crea la lista de aplicaciones usando el theme (create/update delegados)
 func (l *Launcher) createAppList() *widget.List {
-	return widget.NewList(
+	return l.theme.NewStyledList(
 		l.getItemCount,
-		l.createListItem,
-		l.updateListItem,
+		func() fyne.CanvasObject { return l.theme.CreateListItemDefault() },
+		func(id widget.ListItemID, obj fyne.CanvasObject) {
+			// seguridad por si hay cambios en filteredIDs
+			if id >= len(l.filteredIDs) {
+				// limpiar item
+				l.theme.UpdateListItemDefault(id, obj, "", nil, false)
+				return
+			}
+			appID := l.filteredIDs[id]
+			app := l.appMap[appID]
+			res := logic.LoadAppIcon(app)
+			selected := (id == l.selectedIndex)
+			l.theme.UpdateListItemDefault(id, obj, app.Name, res, selected)
+		},
 	)
 }
 
 // Configura todos los manejadores de eventos
 func (l *Launcher) setupEventHandlers() {
 	// Configurar navegación con flechas
-	l.input.onKeyDown = l.handleKeyDown
-	l.input.onKeyUp = l.handleKeyUp
+	l.input.OnKeyDown = l.handleKeyDown
+	l.input.OnKeyUp = l.handleKeyUp
 
 	// Eventos de cambio y envío
 	l.input.OnChanged = l.handleInputChange
@@ -111,41 +144,6 @@ func (l *Launcher) scheduleFocusInput() {
 
 func (l *Launcher) getItemCount() int {
 	return len(l.filteredIDs)
-}
-
-func (l *Launcher) createListItem() fyne.CanvasObject {
-	bg := canvas.NewRectangle(theme.HoverColor())
-	bg.Hide()
-
-	icon := widget.NewIcon(nil)
-	icon.Resize(fyne.NewSize(32, 32))
-
-	label := widget.NewLabel("")
-	label.TextStyle = fyne.TextStyle{Bold: true}
-
-	return container.NewStack(
-		bg,
-		container.NewHBox(icon, label),
-	)
-}
-
-func (l *Launcher) updateListItem(id widget.ListItemID, obj fyne.CanvasObject) {
-	if id >= len(l.filteredIDs) {
-		return
-	}
-
-	appID := l.filteredIDs[id]
-	app := l.appMap[appID]
-	stack := obj.(*fyne.Container)
-
-	bg := stack.Objects[0].(*canvas.Rectangle)
-	contentContainer := stack.Objects[1].(*fyne.Container)
-	icon := contentContainer.Objects[0].(*widget.Icon)
-	label := contentContainer.Objects[1].(*widget.Label)
-
-	label.SetText(app.Name)
-	l.setAppIcon(icon, app)
-	l.highlightSelectedItem(bg, id)
 }
 
 // --- Handlers de eventos ---
@@ -244,49 +242,31 @@ func getFilteredIDs(filter string, appMap map[string]models.Application) []strin
 	return ids
 }
 
-func (l *Launcher) setAppIcon(icon *widget.Icon, app models.Application) {
-	if iconRes := logic.LoadAppIcon(app); iconRes != nil {
-		icon.SetResource(iconRes)
-		icon.Show()
-	} else {
-		icon.Hide()
-	}
-}
-
-func (l *Launcher) highlightSelectedItem(bg *canvas.Rectangle, id int) {
-	if id == l.selectedIndex {
-		bg.Show()
-	} else {
-		bg.Hide()
-	}
-	bg.Refresh()
-}
-
-// --- Implementación de KeyEventInterceptor ---
-
-func NewKeyEventInterceptor() *KeyEventInterceptor {
-	e := &KeyEventInterceptor{}
-	e.ExtendBaseWidget(e)
-	return e
-}
-
-func (e *KeyEventInterceptor) TypedKey(key *fyne.KeyEvent) {
-	switch key.Name {
-	case fyne.KeyDown:
-		if e.onKeyDown != nil {
-			e.onKeyDown()
-		}
-	case fyne.KeyUp:
-		if e.onKeyUp != nil {
-			e.onKeyUp()
-		}
-	default:
-		e.Entry.TypedKey(key)
-	}
-}
-
 // Punto de entrada para iniciar el lanzador
 func RunLauncher(apps []models.Application) {
 	launcher := NewLauncher(apps)
 	launcher.Run()
+}
+
+func toggleWindowVisibility(state *models.AppState) {
+	state.Mu.Lock()
+	shouldShow := !state.Visible
+	state.Mu.Unlock()
+
+	fyne.DoAndWait(func() {
+		if shouldShow {
+			state.Window.Show()
+		} else {
+			state.Window.Hide()
+		}
+	})
+
+	state.Mu.Lock()
+	state.Visible = shouldShow
+	state.Mu.Unlock()
+}
+
+func exitApplication() {
+	fmt.Println("Saliendo...")
+	os.Exit(0)
 }
