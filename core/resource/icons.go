@@ -1,6 +1,7 @@
 package resource
 
 import (
+	_ "embed"
 	"os"
 	"sync"
 
@@ -9,14 +10,15 @@ import (
 )
 
 var (
-	iconPath = "assets/GoFinder.ico"
 	iconName = "GoFinder.ico"
 
-	once      sync.Once
-	cachedRes fyne.Resource
+	//go:embed assets/GoFinder.ico
+	appIconBytes []byte
+	once         sync.Once
+	cachedRes    fyne.Resource
 )
 
-func GetAppIcon() fyne.Resource {
+func GetIcon(iconPath string, iconName string) fyne.Resource {
 	once.Do(func() {
 		data, err := os.ReadFile(iconPath)
 		if err != nil {
@@ -26,4 +28,11 @@ func GetAppIcon() fyne.Resource {
 		cachedRes = fyne.NewStaticResource(iconName, data)
 	})
 	return cachedRes
+}
+
+func GetEmbedAppIcon() fyne.Resource {
+	if len(appIconBytes) == 0 {
+		return nil
+	}
+	return fyne.NewStaticResource(iconName, appIconBytes)
 }

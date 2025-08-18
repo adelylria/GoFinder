@@ -11,8 +11,8 @@ type Application struct {
 	ID       string // UUID único
 	Name     string
 	Exec     string
-	Icon     string // crudo: path,index o nombre
-	IconPath string // expandido
+	Icon     string
+	IconPath string
 	IconIdx  int
 }
 
@@ -24,6 +24,6 @@ type AppState struct {
 
 func NewApplication() Application {
 	return Application{
-		ID: uuid.New().String(), // Genera un nuevo UUID
+		ID: uuid.New().String(),
 	}
 }

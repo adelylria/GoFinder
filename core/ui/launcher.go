@@ -13,7 +13,6 @@ import (
 
 	"github.com/adelylria/GoFinder/core/hotkey"
 	"github.com/adelylria/GoFinder/core/resource"
-	"github.com/adelylria/GoFinder/core/ui"
 	"github.com/adelylria/GoFinder/logic"
 	"github.com/adelylria/GoFinder/models"
 )
@@ -28,18 +27,18 @@ type Launcher struct {
 	appMap        map[string]models.Application
 	filteredIDs   []string
 	selectedIndex int
-	theme         *ui.ThemeConfig
+	theme         *ThemeConfig
 }
 
 // NewLauncher crea el lanzador e inyecta el theme core.
 func NewLauncher(apps []models.Application) *Launcher {
 	myApp := app.New()
 
-	myApp.SetIcon(resource.GetAppIcon())
+	myApp.SetIcon(resource.GetEmbedAppIcon())
 	window := myApp.NewWindow("GoFinder")
 
 	// Theme central
-	t := ui.DefaultTheme()
+	t := DefaultTheme()
 	t.ApplyToWindow(window)
 
 	appMap := createAppMap(apps)
@@ -131,10 +130,10 @@ func (l *Launcher) setupEventHandlers() {
 
 // Programa el enfoque en el campo de entrada
 func (l *Launcher) scheduleFocusInput() {
-	go func() {
+	go fyne.DoAndWait(func() {
 		time.Sleep(100 * time.Millisecond)
 		l.window.Canvas().Focus(l.input)
-	}()
+	})
 }
 
 // --- Funciones para el widget.List ---
@@ -250,7 +249,7 @@ func toggleWindowVisibility(state *models.AppState) {
 	shouldShow := !state.Visible
 	state.Mu.Unlock()
 
-	fyne.DoAndWait(func() {
+	go fyne.Do(func() {
 		if shouldShow {
 			state.Window.Show()
 		} else {

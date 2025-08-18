@@ -4,8 +4,13 @@ go 1.24.5
 
 require (
 	fyne.io/fyne/v2 v2.6.2
-	github.com/go-ole/go-ole v1.2.6
 	github.com/google/uuid v1.6.0
+	github.com/parsiya/golnk v0.0.0-20221103095132-740a4c27c4ff
+)
+
+require (
+	github.com/mattn/go-runewidth v0.0.9 // indirect
+	github.com/olekukonko/tablewriter v0.0.5 // indirect
 )
 
 require (
@@ -16,7 +21,7 @@ require (
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fyne-io/gl-js v0.2.0 // indirect
 	github.com/fyne-io/glfw-js v0.3.0 // indirect
-	github.com/fyne-io/image v0.1.1 // indirect
+	github.com/fyne-io/image v0.1.1
 	github.com/fyne-io/oksvg v0.1.0 // indirect
 	github.com/go-gl/gl v0.0.0-20231021071112-07e5d0ea2e71 // indirect
 	github.com/go-gl/glfw/v3.3/glfw v0.0.0-20240506104042-037f3cc74f2a // indirect
