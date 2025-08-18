@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/adelylria/GoFinder/core/ui"
 	"github.com/adelylria/GoFinder/logic"
-	"github.com/adelylria/GoFinder/ui"
 )
 
 func main() {
