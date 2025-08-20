@@ -1,5 +1,7 @@
 package global
 
+import "time"
+
 var ExcludedApps = map[string]bool{
 	"cmd.exe":                    true,
 	"powershell.exe":             true,
@@ -47,3 +49,5 @@ var ExcludedApps = map[string]bool{
 	"Uninstall":                  true,
 	"Settings":                   true,
 }
+
+var UIInteractionDelay time.Duration = 100 * time.Millisecond

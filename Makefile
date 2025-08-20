@@ -19,19 +19,16 @@ all: build
 run:
 	$(GO) run $(CMD_DIR)
 
-# Compilar para Linux
-build-linux:
+# Compilar para Linux y darwin
+build-linux-darwin:
 	$(GO) build $(LDFLAGS_LINUX) -o $(OUTPUT_DIR)/$(BINARY_NAME) $(CMD_DIR)
 
 # Compilar para Windows
 build-windows:
 	$(GO) build $(LDFLAGS_WINDOWS) -o $(OUTPUT_DIR)/$(BINARY_NAME).exe $(CMD_DIR)
 
-build-darwin:
-	$(GO) build -o $(OUTPUT_DIR)/$(BINARY_NAME)-darwin $(CMD_DIR)
-
 # Compilar para todas las plataformas
-build: build-linux build-windows
+build: build-linux-darwin build-windows
 
 # Limpiar artefactos
 clean:

@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/adelylria/GoFinder/core/global"
 	"github.com/adelylria/GoFinder/core/hotkey"
 	"github.com/adelylria/GoFinder/core/resource"
 	"github.com/adelylria/GoFinder/logic"
@@ -131,7 +132,7 @@ func (l *Launcher) setupEventHandlers() {
 // Programa el enfoque en el campo de entrada
 func (l *Launcher) scheduleFocusInput() {
 	go fyne.DoAndWait(func() {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(global.UIInteractionDelay)
 		l.window.Canvas().Focus(l.input)
 	})
 }
@@ -182,6 +183,11 @@ func (l *Launcher) handleGlobalKeyEvent(ev *fyne.KeyEvent) {
 func (l *Launcher) handleListSelection(id widget.ListItemID) {
 	l.selectedIndex = id
 	l.executeSelectedApp()
+
+	go fyne.Do(func() {
+		time.Sleep(global.UIInteractionDelay)
+		l.window.Canvas().Focus(l.input)
+	})
 }
 
 // --- Funciones de lógica de aplicación ---
@@ -202,6 +208,8 @@ func (l *Launcher) executeSelectedApp() {
 	if err := logic.RunApplication(app); err != nil {
 		log.Printf("Error al ejecutar %s: %v", app.Name, err)
 	}
+
+	l.clearList()
 }
 
 // --- Funciones auxiliares ---
@@ -236,6 +244,19 @@ func getFilteredIDs(filter string, appMap map[string]models.Application) []strin
 		}
 	}
 	return ids
+}
+
+func (l *Launcher) clearList() {
+	l.input.SetText("")
+	l.filteredIDs = getAllAppIDs(l.appMap)
+
+	go fyne.Do(func() {
+		time.Sleep(global.UIInteractionDelay)
+		l.list.Unselect(l.selectedIndex)
+		l.selectedIndex = 0
+		l.list.Refresh()
+		l.list.ScrollTo(l.selectedIndex)
+	})
 }
 
 // Punto de entrada para iniciar el lanzador
