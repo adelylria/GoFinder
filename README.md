@@ -1,5 +1,7 @@
 # GoFinder
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **GoFinder** — a fast, lightweight application launcher written in Go using the **Fyne** GUI toolkit. It focuses on quick keyboard-driven discovery and launch of installed applications, system tray presence, and a global hotkey to toggle visibility.
 
 ---
@@ -8,7 +10,7 @@
 
 * ## **Supported platforms:**
 
-    - Windows is partialy supported (extraction of icons from executables and shortcuts, global hotkey, tray integration). 
+    - Windows is **partially** supported (extraction of icons from executables and shortcuts, global hotkey, tray integration). 
 
     - Linux implements discovery via `.desktop` files and returns `Application` objects but lacks some integrations (tray behavior and advanced icon extraction). 
 
@@ -115,3 +117,7 @@ Add or verify the following in `go.mod`:
 * \[\~] Configuration for keybinding/themes ...
 
 ---
+
+## 📄 License
+
+GoFinder is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
