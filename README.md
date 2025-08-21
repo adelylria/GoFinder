@@ -25,7 +25,6 @@ cmd/                # main entry & build resources
 core/               # cross-cutting core modules (hotkey, resource, ui, logger)
 logic/              # platform-specific discovery, execution and icon logic
 models/             # data models (Application, AppState, ...)
-build/              # compiled artifacts
 ```
 
 ---
