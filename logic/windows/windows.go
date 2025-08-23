@@ -1,4 +1,7 @@
-package logic
+//go:build windows
+// +build windows
+
+package windows
 
 import (
 	"fmt"
@@ -7,12 +10,13 @@ import (
 	"strings"
 
 	"github.com/adelylria/GoFinder/core/global"
+	"github.com/adelylria/GoFinder/logic/common"
 	"github.com/adelylria/GoFinder/models"
 )
 
-type windowsAppFinder struct{}
+type WindowsAppFinder struct{}
 
-func (f windowsAppFinder) Find() []models.Application {
+func (f WindowsAppFinder) Find() []models.Application {
 	fmt.Println("Buscando aplicaciones en Windows...")
 	return findWindowsApplications()
 }
@@ -20,7 +24,7 @@ func (f windowsAppFinder) Find() []models.Application {
 func ProcessWindowsShortcut(path string, seen map[string]bool) *models.Application {
 	app := resolveWindowsShortcut(path)
 
-	if !IsValidApp(app) {
+	if !common.IsValidApp(app) {
 		fmt.Printf("Descartada (no válida): %s -> %s\n", app.Name, app.Exec)
 		return nil
 	}
@@ -39,7 +43,7 @@ func ProcessWindowsShortcut(path string, seen map[string]bool) *models.Applicati
 	}
 	seen[app.Exec] = true
 
-	iconPath, iconIndex := parseIconLocation(app.Icon)
+	iconPath, iconIndex := common.ParseIconLocation(app.Icon)
 	app.IconPath = iconPath
 	app.IconIdx = iconIndex
 
@@ -59,7 +63,7 @@ func findWindowsApplications() []models.Application {
 	seen := make(map[string]bool)
 	desktopDir := filepath.Join(os.Getenv("USERPROFILE"), "Desktop")
 
-	for _, dir := range GetAppDirs() {
+	for _, dir := range common.GetAppDirs() {
 		fmt.Println("Escaneando directorio:", dir)
 		absDir, _ := filepath.Abs(dir)
 		absDesktop, _ := filepath.Abs(desktopDir)

@@ -1,4 +1,4 @@
-package logic
+package ubuntu
 
 import (
 	"fmt"
@@ -6,12 +6,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/adelylria/GoFinder/logic/common"
 	"github.com/adelylria/GoFinder/models"
 )
 
-type linuxAppFinder struct{}
+type LinuxAppFinder struct{}
 
-func (f linuxAppFinder) Find() []models.Application {
+func (f LinuxAppFinder) Find() []models.Application {
 	fmt.Println("Buscando aplicaciones en Linux...")
 	return findLinuxApplications()
 }
@@ -19,7 +20,7 @@ func (f linuxAppFinder) Find() []models.Application {
 func findLinuxApplications() []models.Application {
 	var apps []models.Application
 
-	for _, dir := range GetAppDirs() {
+	for _, dir := range common.GetAppDirs() {
 		fmt.Println("Escaneando directorio:", dir)
 		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() || !strings.HasSuffix(path, ".desktop") {
@@ -82,5 +83,5 @@ func parseDesktopFile(path string) (models.Application, bool) {
 			}
 		}
 	}
-	return app, IsValidApp(app)
+	return app, common.IsValidApp(app)
 }

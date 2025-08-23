@@ -1,4 +1,4 @@
-package logic
+package common
 
 import (
 	"os"
@@ -33,7 +33,7 @@ func IsValidApp(app models.Application) bool {
 	return app.Name != "" && app.Exec != ""
 }
 
-func parseIconLocation(iconLoc string) (string, int) {
+func ParseIconLocation(iconLoc string) (string, int) {
 	if iconLoc == "" {
 		return "", 0
 	}
@@ -90,4 +90,18 @@ func SplitIconLocation(iconLoc string) (string, int) {
 	}
 
 	return pathPart, idx
+}
+
+func SanitizeResourceName(s string) string {
+	if s == "" {
+		return "icon"
+	}
+	s = filepath.Base(s)
+	s = strings.TrimSuffix(s, filepath.Ext(s))
+	return strings.Map(func(r rune) rune {
+		if r < 32 || r == '\\' || r == '/' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' {
+			return -1
+		}
+		return r
+	}, s)
 }

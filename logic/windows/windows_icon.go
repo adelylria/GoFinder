@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package logic
+package windows
 
 import (
 	"bytes"
@@ -12,15 +12,13 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"unsafe"
 
 	"fyne.io/fyne/v2"
+	"github.com/adelylria/GoFinder/logic/common"
 	"github.com/adelylria/GoFinder/models"
-	"github.com/fyne-io/image/ico"
 	"github.com/lxn/win"
 	lnk "github.com/parsiya/golnk"
 	"golang.org/x/sys/windows"
@@ -35,25 +33,6 @@ var (
 	procCreateDIBSection = gdi32.NewProc("CreateDIBSection")
 	procExtractIconExW   = shell32.NewProc("ExtractIconExW")
 )
-
-// ---- Icon Cache ----
-var (
-	iconCache = make(map[string]fyne.Resource)
-	cacheMu   sync.RWMutex
-)
-
-func cacheGet(key string) (fyne.Resource, bool) {
-	cacheMu.RLock()
-	defer cacheMu.RUnlock()
-	r, ok := iconCache[key]
-	return r, ok
-}
-
-func cacheSet(key string, res fyne.Resource) {
-	cacheMu.Lock()
-	defer cacheMu.Unlock()
-	iconCache[key] = res
-}
 
 // ExtractIconExW
 func ExtractIconEx(path string, index int) (win.HICON, error) {
@@ -240,163 +219,8 @@ func LoadIconFromHICON(hIcon win.HICON, nameHint string) fyne.Resource {
 		return nil
 	}
 
-	resName := sanitizeResourceName(nameHint)
+	resName := common.SanitizeResourceName(nameHint)
 	return fyne.NewStaticResource(resName+".png", buf.Bytes())
-}
-
-func sanitizeResourceName(s string) string {
-	if s == "" {
-		return "icon"
-	}
-	s = filepath.Base(s)
-	s = strings.TrimSuffix(s, filepath.Ext(s))
-	return strings.Map(func(r rune) rune {
-		if r < 32 || r == '\\' || r == '/' || r == ':' || r == '*' || r == '?' || r == '"' || r == '<' || r == '>' || r == '|' {
-			return -1
-		}
-		return r
-	}, s)
-}
-
-// ---- Icon Loading Workflow ----
-func LoadAppIcon(app models.Application) fyne.Resource {
-	// Sistema no-Windows
-	if runtime.GOOS != "windows" {
-		if app.IconPath == "" {
-			return nil
-		}
-		if cached, ok := cacheGet(app.IconPath); ok {
-			return cached
-		}
-		res := loadImageFileToResource(app.IconPath, app.Name)
-		if res != nil {
-			cacheSet(app.IconPath, res)
-		}
-		return res
-	}
-
-	// Windows: usar caché con clave única
-	cacheKey := fmt.Sprintf("%s|%d", app.IconPath, app.IconIdx)
-	if cached, ok := cacheGet(cacheKey); ok {
-		return cached
-	}
-
-	// 1. Intentar cargar como archivo de imagen
-	if app.IconPath != "" {
-		cleanPath := strings.Trim(app.IconPath, `"`)
-		ext := strings.ToLower(filepath.Ext(cleanPath))
-		switch ext {
-		case ".png", ".jpg", ".jpeg":
-			if res := loadImageFileToResource(cleanPath, app.Name); res != nil {
-				cacheSet(cacheKey, res)
-				return res
-			}
-		case ".ico":
-			if res := loadICOToResource(cleanPath, app.Name); res != nil {
-				cacheSet(cacheKey, res)
-				return res
-			}
-		}
-	}
-
-	// 2. Extraer icono de ejecutable/archivo usando el índice especificado
-	if app.IconPath != "" {
-		cleanPath := strings.Trim(app.IconPath, `"`)
-
-		// Primero con el índice original
-		if hIcon, err := ExtractIconEx(cleanPath, app.IconIdx); err == nil {
-			if res := LoadIconFromHICON(hIcon, app.Name); res != nil {
-				cacheSet(cacheKey, res)
-				return res
-			}
-		}
-
-		// Si falla, intentar con índice 0
-		if app.IconIdx != 0 {
-			if hIcon, err := ExtractIconEx(cleanPath, 0); err == nil {
-				if res := LoadIconFromHICON(hIcon, app.Name); res != nil {
-					cacheSet(cacheKey, res)
-					return res
-				}
-			}
-		}
-	}
-
-	// 3. Intentar con el ejecutable principal
-	if app.Exec != "" {
-		cleanExec := strings.Trim(app.Exec, `"`)
-		if hIcon, err := ExtractIconEx(cleanExec, 0); err == nil {
-			if res := LoadIconFromHICON(hIcon, app.Name); res != nil {
-				cacheSet(cacheKey, res)
-				return res
-			}
-		}
-	}
-
-	// 4. Fallback: obtener icono del sistema
-	if app.IconPath != "" {
-		cleanPath := strings.Trim(app.IconPath, `"`)
-		if hIcon, err := SHGetFileIcon(cleanPath); err == nil {
-			if res := LoadIconFromHICON(hIcon, app.Name); res != nil {
-				cacheSet(cacheKey, res)
-				return res
-			}
-		}
-	}
-
-	// 5. Fallback final: icono del ejecutable usando SHGetFileInfo
-	if app.Exec != "" {
-		cleanExec := strings.Trim(app.Exec, `"`)
-		if hIcon, err := SHGetFileIcon(cleanExec); err == nil {
-			if res := LoadIconFromHICON(hIcon, app.Name); res != nil {
-				cacheSet(cacheKey, res)
-				return res
-			}
-		}
-	}
-
-	return nil
-}
-
-// ---- File Loaders ----
-func loadImageFileToResource(path, nameHint string) fyne.Resource {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return nil
-	}
-
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return nil
-	}
-
-	return fyne.NewStaticResource(sanitizeResourceName(nameHint)+".png", buf.Bytes())
-}
-
-func loadICOToResource(path, nameHint string) fyne.Resource {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-
-	img, err := ico.Decode(file)
-	if err != nil {
-		return nil
-	}
-
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return nil
-	}
-
-	return fyne.NewStaticResource(sanitizeResourceName(nameHint)+".png", buf.Bytes())
 }
 
 // resolveWindowsShortcut resuelve un acceso directo de Windows

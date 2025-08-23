@@ -6,9 +6,9 @@ import (
 	"github.com/adelylria/GoFinder/models"
 )
 
-type darwinAppFinder struct{}
+type DarwinAppFinder struct{}
 
-func (f darwinAppFinder) Find() []models.Application {
+func (f DarwinAppFinder) Find() []models.Application {
 	fmt.Println("Buscando aplicaciones en macOS/iOS...")
 	// Implementación futura
 	return []models.Application{}

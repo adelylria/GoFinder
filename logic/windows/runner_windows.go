@@ -1,4 +1,7 @@
-package logic
+//go:build windows
+// +build windows
+
+package windows
 
 import (
 	"os/exec"

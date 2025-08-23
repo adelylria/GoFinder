@@ -15,6 +15,7 @@ import (
 	"github.com/adelylria/GoFinder/core/hotkey"
 	"github.com/adelylria/GoFinder/core/resource"
 	"github.com/adelylria/GoFinder/logic"
+	"github.com/adelylria/GoFinder/logic/windows"
 	"github.com/adelylria/GoFinder/models"
 )
 
@@ -205,7 +206,7 @@ func (l *Launcher) executeSelectedApp() {
 	app := l.appMap[appID]
 	log.Printf("Ejecutando: %s (%s)", app.Name, app.Exec)
 
-	if err := logic.RunApplication(app); err != nil {
+	if err := windows.RunApplication(app); err != nil {
 		log.Printf("Error al ejecutar %s: %v", app.Name, err)
 	}
 
