@@ -1,6 +1,5 @@
 # Variables
 GO = go
-GCC = gcc
 OUTPUT_DIR = build
 BINARY_NAME = goFinder
 LDFLAGS_LINUX = 
@@ -8,10 +7,9 @@ LDFLAGS_WINDOWS = -ldflags="-H=windowsgui"
 
 # Directorios
 CMD_DIR = ./cmd
-HOTKEY_DIR = ./core/hotkey
 
 # Objetivos
-.PHONY: all run build build-linux build-windows clean test
+.PHONY: all run build build-linux build-windows clean test help
 
 all: build
 
@@ -19,16 +17,23 @@ all: build
 run:
 	$(GO) run $(CMD_DIR)
 
-# Compilar para Linux y darwin
-build-linux-darwin:
-	$(GO) build $(LDFLAGS_LINUX) -o $(OUTPUT_DIR)/$(BINARY_NAME) $(CMD_DIR)
+# Compilar para Linux
+build-linux:
+	mkdir -p $(OUTPUT_DIR)
+	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS_LINUX) -o $(OUTPUT_DIR)/$(BINARY_NAME) $(CMD_DIR)
+
+# Compilar para macOS
+build-darwin:
+	mkdir -p $(OUTPUT_DIR)
+	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS_LINUX) -o $(OUTPUT_DIR)/$(BINARY_NAME) $(CMD_DIR)
 
 # Compilar para Windows
 build-windows:
-	$(GO) build $(LDFLAGS_WINDOWS) -o $(OUTPUT_DIR)/$(BINARY_NAME).exe $(CMD_DIR)
+	mkdir -p $(OUTPUT_DIR)
+	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS_WINDOWS) -o $(OUTPUT_DIR)/$(BINARY_NAME).exe $(CMD_DIR)
 
 # Compilar para todas las plataformas
-build: build-linux-darwin build-windows
+build: build-linux build-darwin build-windows
 
 # Limpiar artefactos
 clean:
@@ -42,9 +47,9 @@ test:
 help:
 	@echo "Comandos disponibles:"
 	@echo "  make run          		- Ejecuta el programa"
-	@echo "  make build        		- Compila para Linux y Windows"
+	@echo "  make build        		- Compila para Linux, macOS y Windows"
 	@echo "  make build-linux  		- Compila para Linux"
-	@echo "  make build-windows 	- Compila para Windows (incluye DLL)"
+	@echo "  make build-windows 	- Compila para Windows"
 	@echo "  make build-darwin   	- Compila para macOS"
 	@echo "  make clean        		- Limpia artefactos"
 	@echo "  make test         		- Ejecuta pruebas"

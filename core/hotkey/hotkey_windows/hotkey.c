@@ -6,8 +6,8 @@
 extern void handleHotkey(int id);
 
 void setupHotkey() {
-    RegisterHotKey(NULL, 1, MOD_ALT, 'R');
-    RegisterHotKey(NULL, 2, MOD_ALT, 'Q');
+    RegisterHotKey(NULL, 1, MOD_ALT, 0x52); // 0x52 is 'R'
+    RegisterHotKey(NULL, 2, MOD_ALT, 0x51); // 0x51 is 'Q'
 
     MSG msg = {0};
     while (GetMessage(&msg, NULL, 0, 0) != 0) {

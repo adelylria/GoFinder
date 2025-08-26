@@ -4,9 +4,9 @@
 package hotkey
 
 /*
-#cgo CFLAGS: -I./hotkey_windows
-#cgo LDFLAGS: -luser32
-#include "hotkey.h"
+#cgo windows CFLAGS: -I./hotkey_windows
+#cgo windows LDFLAGS: -L./hotkey_windows -lhotkey -luser32
+#include "hotkey_windows/hotkey.h"
 */
 import "C"
 import "fmt"

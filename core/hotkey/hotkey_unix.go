@@ -3,8 +3,6 @@
 
 package hotkey
 
-// En Linux/macOS no hacemos nada. Solo stubs.
-
 func SetupHotkey(handler func(int))      {}
 func (hm *HotkeyManager) ListenHotkeys() {}
 
