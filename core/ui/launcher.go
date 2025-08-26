@@ -12,11 +12,11 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/adelylria/GoFinder/core/global"
-	"github.com/adelylria/GoFinder/core/hotkey"
 	"github.com/adelylria/GoFinder/core/resource"
 	"github.com/adelylria/GoFinder/logic"
-	"github.com/adelylria/GoFinder/logic/windows"
 	"github.com/adelylria/GoFinder/models"
+
+	hotkey "github.com/adelylria/GoFinder/core/hotkey"
 )
 
 // Launcher es el componente principal de la UI del lanzador.
@@ -50,14 +50,14 @@ func NewLauncher(apps []models.Application) *Launcher {
 		Visible: true,
 	}
 
-	// Configurar el HotkeyManager
-	hm := &hotkey.HotkeyManager{
-		ToggleHandler: func() {
-			toggleWindowVisibility(appState)
-		},
-		ExitHandler: exitApplication,
+	hm := hotkey.NewHotkeyManager(
+		func() { toggleWindowVisibility(appState) },
+		exitApplication,
+	)
+
+	if hm != nil {
+		hm.ListenHotkeys()
 	}
-	hm.ListenHotkeys()
 
 	return &Launcher{
 		window:        window,
@@ -206,7 +206,7 @@ func (l *Launcher) executeSelectedApp() {
 	app := l.appMap[appID]
 	log.Printf("Ejecutando: %s (%s)", app.Name, app.Exec)
 
-	if err := windows.RunApplication(app); err != nil {
+	if err := logic.RunApplication(app); err != nil {
 		log.Printf("Error al ejecutar %s: %v", app.Name, err)
 	}
 

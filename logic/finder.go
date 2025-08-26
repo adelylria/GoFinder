@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/adelylria/GoFinder/logic/ubuntu"
-	"github.com/adelylria/GoFinder/logic/windows"
 	"github.com/adelylria/GoFinder/models"
 )
 
@@ -25,18 +23,5 @@ func FindApplications() []models.Application {
 		fmt.Printf("Sistema operativo no soportado: %s\n", runtime.GOOS)
 		return []models.Application{}
 	}
-
 	return finder.Find()
-}
-
-// Inicialización por sistema operativo
-func init() {
-	// Windows
-	RegisterAppFinder("windows", windows.WindowsAppFinder{})
-
-	// Linux
-	RegisterAppFinder("linux", ubuntu.LinuxAppFinder{})
-
-	// macOS/iOS (preparado para futuro)
-	RegisterAppFinder("darwin", DarwinAppFinder{})
 }

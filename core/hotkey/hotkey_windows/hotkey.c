@@ -1,6 +1,8 @@
+#ifdef _WIN32
 #include <windows.h>
 #include "hotkey.h"
 
+// Declaración de la función Go (se define en Go via //export)
 extern void handleHotkey(int id);
 
 void setupHotkey() {
@@ -20,3 +22,5 @@ void setupHotkey() {
     UnregisterHotKey(NULL, 1);
     UnregisterHotKey(NULL, 2);
 }
+
+#endif
