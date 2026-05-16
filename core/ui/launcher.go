@@ -5,12 +5,12 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/adelylria/GoFinder/core/configuration"
@@ -36,8 +36,11 @@ type Launcher struct {
 	selectedIndex int
 	theme         *ThemeConfig
 	config        configuration.Config
-	startHidden   bool
-	hotkeys       *hotkey.HotkeyManager
+	startHidden    bool
+	hotkeys        *hotkey.HotkeyManager
+	dialogsMu      sync.Mutex
+	settingsDialog dialog.Dialog
+	aboutDialog    dialog.Dialog
 }
 
 // NewLauncher crea el lanzador e inyecta el theme core.
@@ -96,6 +99,7 @@ func (l *Launcher) Run() {
 	if !l.startHidden {
 		l.window.Show()
 	}
+	l.applyNativeMenuPlatformHooks()
 	fyne.CurrentApp().Run()
 }
 
@@ -105,10 +109,9 @@ func (l *Launcher) initializeUI() {
 	l.list = l.createAppList()
 	l.setupEventHandlers()
 
-	menuBar := l.createMenuBar()
-	top := container.NewVBox(menuBar, l.input)
-	content := l.theme.NewBorderWithInputTop(top, l.list)
+	content := l.theme.NewBorderWithInputTop(l.input, l.list)
 	l.window.SetContent(content)
+	l.configureNativeMenu()
 
 	l.setupMenuHotkeys()
 
@@ -222,9 +225,6 @@ func (l *Launcher) handleGlobalKeyEvent(ev *fyne.KeyEvent) {
 		l.executeSelectedApp()
 	case fyne.KeyEscape:
 		l.window.Close()
-	case desktop.KeyAltLeft, desktop.KeyAltRight:
-		// Alt is reserved for global show/hide hotkeys; do not activate a menu bar.
-		return
 	}
 }
 

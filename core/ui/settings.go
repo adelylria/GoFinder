@@ -11,12 +11,48 @@ import (
 )
 
 func (l *Launcher) showSettingsDialog() {
+	l.dialogsMu.Lock()
+	if l.settingsDialog != nil {
+		l.settingsDialog.Show()
+		l.dialogsMu.Unlock()
+		return
+	}
+	l.dialogsMu.Unlock()
+
 	content := container.NewPadded(l.buildSettingsForm())
-	dialog.ShowCustom(i18n.T(i18n.MenuPreferences), i18n.T(i18n.DialogClose), content, l.window)
+	d := dialog.NewCustom(i18n.T(i18n.MenuPreferences), i18n.T(i18n.DialogClose), content, l.window)
+	d.SetOnClosed(func() {
+		l.dialogsMu.Lock()
+		l.settingsDialog = nil
+		l.dialogsMu.Unlock()
+	})
+
+	l.dialogsMu.Lock()
+	l.settingsDialog = d
+	l.dialogsMu.Unlock()
+	d.Show()
 }
 
 func (l *Launcher) showAboutDialog() {
-	dialog.ShowInformation(i18n.T(i18n.MenuAbout), i18n.T(i18n.AboutText), l.window)
+	l.dialogsMu.Lock()
+	if l.aboutDialog != nil {
+		l.aboutDialog.Show()
+		l.dialogsMu.Unlock()
+		return
+	}
+	l.dialogsMu.Unlock()
+
+	d := dialog.NewInformation(i18n.T(i18n.MenuAbout), i18n.T(i18n.AboutText), l.window)
+	d.SetOnClosed(func() {
+		l.dialogsMu.Lock()
+		l.aboutDialog = nil
+		l.dialogsMu.Unlock()
+	})
+
+	l.dialogsMu.Lock()
+	l.aboutDialog = d
+	l.dialogsMu.Unlock()
+	d.Show()
 }
 
 func (l *Launcher) buildSettingsForm() fyne.CanvasObject {
