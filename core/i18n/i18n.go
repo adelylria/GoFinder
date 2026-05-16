@@ -26,6 +26,22 @@ const (
 	AppExitMessage    = "app.exit.message"
 	LogRunningApp     = "log.running_app"
 	LogRunAppError    = "log.run_app_error"
+	SettingsToggle    = "settings.toggle"
+	SettingsQuit      = "settings.quit"
+	SettingsAutoStart = "settings.autostart"
+	SettingsHidden    = "settings.hidden"
+	SettingsSaved     = "settings.saved"
+	SettingsRestart   = "settings.restart"
+	SettingsHotkeys   = "settings.hotkeys"
+	SettingsGeneral   = "settings.general"
+	MenuFile          = "menu.file"
+	MenuConfig        = "menu.config"
+	MenuHelp          = "menu.help"
+	MenuExit          = "menu.exit"
+	MenuPreferences   = "menu.preferences"
+	MenuAbout         = "menu.about"
+	DialogClose       = "dialog.close"
+	AboutText         = "about.text"
 )
 
 var (
@@ -46,6 +62,22 @@ var translations = map[Language]map[string]string{
 		AppExitMessage:    "Exiting...",
 		LogRunningApp:     "Running: %s (%s)",
 		LogRunAppError:    "Error running %s: %v",
+		SettingsToggle:    "Show",
+		SettingsQuit:      "Quit",
+		SettingsAutoStart: "Start with Windows",
+		SettingsHidden:    "Start hidden",
+		SettingsSaved:     "Saved",
+		SettingsRestart:   "Restart to apply shortcuts",
+		SettingsHotkeys:   "Keyboard shortcuts",
+		SettingsGeneral:   "General",
+		MenuFile:          "File",
+		MenuConfig:        "Settings",
+		MenuHelp:          "Help",
+		MenuExit:          "Exit",
+		MenuPreferences:   "Preferences...",
+		MenuAbout:         "About GoFinder",
+		DialogClose:       "Close",
+		AboutText:         "GoFinder — fast application launcher.",
 	},
 	Spanish: {
 		SearchPlaceholder: "Buscar aplicación...",
@@ -59,6 +91,22 @@ var translations = map[Language]map[string]string{
 		AppExitMessage:    "Saliendo...",
 		LogRunningApp:     "Ejecutando: %s (%s)",
 		LogRunAppError:    "Error al ejecutar %s: %v",
+		SettingsToggle:    "Mostrar",
+		SettingsQuit:      "Salir",
+		SettingsAutoStart: "Iniciar con Windows",
+		SettingsHidden:    "Iniciar oculto",
+		SettingsSaved:     "Guardado",
+		SettingsRestart:   "Reinicia para aplicar atajos",
+		SettingsHotkeys:   "Atajos de teclado",
+		SettingsGeneral:   "General",
+		MenuFile:          "Archivo",
+		MenuConfig:        "Configuración",
+		MenuHelp:          "Ayuda",
+		MenuExit:          "Salir",
+		MenuPreferences:   "Preferencias...",
+		MenuAbout:         "Acerca de GoFinder",
+		DialogClose:       "Cerrar",
+		AboutText:         "GoFinder — lanzador de aplicaciones rápido.",
 	},
 	Catalan: {
 		SearchPlaceholder: "Cerca una aplicació...",
@@ -72,6 +120,22 @@ var translations = map[Language]map[string]string{
 		AppExitMessage:    "Sortint...",
 		LogRunningApp:     "Executant: %s (%s)",
 		LogRunAppError:    "Error en executar %s: %v",
+		SettingsToggle:    "Mostra",
+		SettingsQuit:      "Surt",
+		SettingsAutoStart: "Inicia amb Windows",
+		SettingsHidden:    "Inicia amagat",
+		SettingsSaved:     "Desat",
+		SettingsRestart:   "Reinicia per aplicar dreceres",
+		SettingsHotkeys:   "Dreceres de teclat",
+		SettingsGeneral:   "General",
+		MenuFile:          "Fitxer",
+		MenuConfig:        "Configuració",
+		MenuHelp:          "Ajuda",
+		MenuExit:          "Surt",
+		MenuPreferences:   "Preferències...",
+		MenuAbout:         "Quant a GoFinder",
+		DialogClose:       "Tanca",
+		AboutText:         "GoFinder — llançador d'aplicacions ràpid.",
 	},
 }
 

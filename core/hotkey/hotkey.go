@@ -8,12 +8,29 @@ import (
 type HotkeyManager struct {
 	ToggleHandler func()
 	ExitHandler   func()
+	PrefsHandler  func()
+	AboutHandler  func()
+	ToggleHotkey  KeyBinding
+	ExitHotkey    KeyBinding
+}
+
+func (hm *HotkeyManager) SetMenuHandlers(prefs, about func()) {
+	hm.PrefsHandler = prefs
+	hm.AboutHandler = about
+}
+
+type KeyBinding struct {
+	Modifier string
+	Key      string
 }
 
 type KeyEventInterceptor struct {
 	widget.Entry
-	OnKeyDown func()
-	OnKeyUp   func()
+	OnKeyDown    func()
+	OnKeyUp      func()
+	OnMenuQuit   func()
+	OnMenuPrefs  func()
+	OnMenuAbout  func()
 }
 
 // NewKeyEventInterceptor crea el Entry personalizado para eventos de teclado
@@ -40,9 +57,26 @@ func (e *KeyEventInterceptor) TypedKey(ev *fyne.KeyEvent) {
 	e.Entry.TypedKey(ev)
 }
 
-func NewHotkeyManager(toggle func(), exit func()) *HotkeyManager {
+func (e *KeyEventInterceptor) TypedShortcut(shortcut fyne.Shortcut) {
+	if handleMenuShortcut(shortcut, e.OnMenuQuit, e.OnMenuPrefs, e.OnMenuAbout) {
+		return
+	}
+	e.Entry.TypedShortcut(shortcut)
+}
+
+func NewHotkeyManager(toggle func(), exit func(), bindings ...KeyBinding) *HotkeyManager {
+	toggleHotkey := KeyBinding{Modifier: "Alt", Key: "R"}
+	exitHotkey := KeyBinding{Modifier: "Alt", Key: "Q"}
+	if len(bindings) > 0 {
+		toggleHotkey = bindings[0]
+	}
+	if len(bindings) > 1 {
+		exitHotkey = bindings[1]
+	}
 	return &HotkeyManager{
 		ToggleHandler: toggle,
 		ExitHandler:   exit,
+		ToggleHotkey:  toggleHotkey,
+		ExitHotkey:    exitHotkey,
 	}
 }

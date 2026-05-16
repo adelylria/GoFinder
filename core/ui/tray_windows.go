@@ -7,12 +7,16 @@ import (
 
 	"fyne.io/systray"
 	"github.com/adelylria/GoFinder/core/i18n"
+	"github.com/adelylria/GoFinder/core/singleinstance"
 	"github.com/adelylria/GoFinder/models"
 )
 
 var trayOnce sync.Once
 
 func startSystemTray(state *models.AppState, icon []byte) {
+	if !singleinstance.IsOwner() {
+		return
+	}
 	trayOnce.Do(func() {
 		go systray.Run(
 			func() { setupSystemTray(state, icon) },

@@ -11,10 +11,22 @@ WINDOWS_ICON_SYSO = $(CMD_DIR)/gofinder_windows.syso
 # Directorios
 CMD_DIR = ./cmd
 
-# Objetivos
-.PHONY: all run build build-linux build-windows clean test help
+# Plataforma por defecto (evita cross-compile de Linux en Windows, etc.)
+ifeq ($(OS),Windows_NT)
+	DEFAULT_BUILD := build-windows
+else
+	UNAME_S := $(shell uname -s 2>/dev/null)
+	ifeq ($(UNAME_S),Darwin)
+		DEFAULT_BUILD := build-darwin
+	else
+		DEFAULT_BUILD := build-linux
+	endif
+endif
 
-all: build
+# Objetivos
+.PHONY: all run build build-all build-linux build-darwin build-windows clean test help
+
+all: $(DEFAULT_BUILD)
 
 # Ejecutar el programa
 run:
@@ -37,8 +49,11 @@ build-windows:
 $(WINDOWS_ICON_SYSO): $(WINDOWS_ICON_RC) core/resource/assets/GoFinder.ico
 	$(WINDRES) -O coff -F pe-x86-64 -o $(WINDOWS_ICON_SYSO) $(WINDOWS_ICON_RC)
 
-# Compilar para todas las plataformas
-build: build-linux build-darwin build-windows
+# Compilar solo para la plataforma actual
+build: $(DEFAULT_BUILD)
+
+# Compilar para todas las plataformas (CI / release; requiere toolchains de cross-compile)
+build-all: build-linux build-darwin build-windows
 
 # Limpiar artefactos
 clean:
@@ -53,7 +68,8 @@ test:
 help:
 	@echo "Comandos disponibles:"
 	@echo "  make run          		- Ejecuta el programa"
-	@echo "  make build        		- Compila para Linux, macOS y Windows"
+	@echo "  make / make build 		- Compila para la plataforma actual"
+	@echo "  make build-all    		- Compila Linux, macOS y Windows"
 	@echo "  make build-linux  		- Compila para Linux"
 	@echo "  make build-windows 	- Compila para Windows"
 	@echo "  make build-darwin   	- Compila para macOS"

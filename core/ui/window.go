@@ -37,7 +37,7 @@ type ThemeConfig struct {
 // tomados del launcher existente (por ejemplo 600x500 y icon 32x32).
 func DefaultTheme() *ThemeConfig {
 	return &ThemeConfig{
-		WindowSize:       fyne.NewSize(600, 500),
+		WindowSize:       fyne.NewSize(900, 500),
 		FixedWindow:      true,
 		InputHeight:      44,
 		InputPlaceholder: i18n.T(i18n.SearchPlaceholder),

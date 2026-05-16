@@ -9,10 +9,14 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/adelylria/GoFinder/core/configuration"
 	"github.com/adelylria/GoFinder/core/global"
 	"github.com/adelylria/GoFinder/core/i18n"
+	"github.com/adelylria/GoFinder/core/singleinstance"
 	"github.com/adelylria/GoFinder/core/resource"
 	"github.com/adelylria/GoFinder/logic"
 	"github.com/adelylria/GoFinder/models"
@@ -31,6 +35,9 @@ type Launcher struct {
 	filteredIDs   []string
 	selectedIndex int
 	theme         *ThemeConfig
+	config        configuration.Config
+	startHidden   bool
+	hotkeys       *hotkey.HotkeyManager
 }
 
 // NewLauncher crea el lanzador e inyecta el theme core.
@@ -39,6 +46,14 @@ func NewLauncher(apps []models.Application) *Launcher {
 
 	myApp.SetIcon(resource.GetEmbedAppIcon())
 	window := myApp.NewWindow("GoFinder")
+	cfg, err := configuration.Load()
+	if err != nil {
+		log.Printf("Error cargando configuración: %v", err)
+		cfg = configuration.DefaultConfig()
+	}
+	if err := configuration.ApplyAutoStart(cfg.AutoStart); err != nil {
+		log.Printf("Error configurando inicio automático: %v", err)
+	}
 
 	// Theme central
 	t := DefaultTheme()
@@ -48,17 +63,19 @@ func NewLauncher(apps []models.Application) *Launcher {
 
 	appState := &models.AppState{
 		Window:  window,
-		Visible: true,
+		Visible: !cfg.StartHidden,
 	}
 
 	hm := hotkey.NewHotkeyManager(
 		func() { toggleWindowVisibility(appState) },
 		quitApplication,
+		toHotkeyBinding(cfg.ToggleHotkey),
+		toHotkeyBinding(cfg.QuitHotkey),
 	)
 
-	if hm != nil {
-		hm.ListenHotkeys()
-	}
+	singleinstance.SetActivationHandler(func() {
+		setWindowVisible(appState, true)
+	})
 	startSystemTray(appState, resource.GetEmbedAppIconBytes())
 
 	return &Launcher{
@@ -67,13 +84,19 @@ func NewLauncher(apps []models.Application) *Launcher {
 		filteredIDs:   getAllAppIDs(appMap),
 		selectedIndex: 0,
 		theme:         t,
+		config:        cfg,
+		startHidden:   cfg.StartHidden,
+		hotkeys:       hm,
 	}
 }
 
 // Inicia y muestra la interfaz de usuario
 func (l *Launcher) Run() {
 	l.initializeUI()
-	l.window.ShowAndRun()
+	if !l.startHidden {
+		l.window.Show()
+	}
+	fyne.CurrentApp().Run()
 }
 
 // Configura todos los componentes de la interfaz
@@ -82,10 +105,29 @@ func (l *Launcher) initializeUI() {
 	l.list = l.createAppList()
 	l.setupEventHandlers()
 
-	content := l.theme.NewBorderWithInputTop(l.input, l.list)
+	menuBar := l.createMenuBar()
+	top := container.NewVBox(menuBar, l.input)
+	content := l.theme.NewBorderWithInputTop(top, l.list)
 	l.window.SetContent(content)
 
-	l.scheduleFocusInput()
+	l.setupMenuHotkeys()
+
+	if !l.startHidden {
+		l.scheduleFocusInput()
+	}
+}
+
+func (l *Launcher) setupMenuHotkeys() {
+	if l.hotkeys == nil {
+		return
+	}
+
+	l.hotkeys.SetMenuHandlers(l.showSettingsDialog, l.showAboutDialog)
+	l.hotkeys.ListenHotkeys()
+
+	l.input.OnMenuQuit = quitApplication
+	l.input.OnMenuPrefs = l.showSettingsDialog
+	l.input.OnMenuAbout = l.showAboutDialog
 }
 
 // Crea y configura el campo de búsqueda usando el theme
@@ -180,6 +222,9 @@ func (l *Launcher) handleGlobalKeyEvent(ev *fyne.KeyEvent) {
 		l.executeSelectedApp()
 	case fyne.KeyEscape:
 		l.window.Close()
+	case desktop.KeyAltLeft, desktop.KeyAltRight:
+		// Alt is reserved for global show/hide hotkeys; do not activate a menu bar.
+		return
 	}
 }
 
@@ -297,5 +342,21 @@ func setWindowVisible(state *models.AppState, visible bool) {
 
 func quitApplication() {
 	fmt.Println(i18n.T(i18n.AppExitMessage))
+	singleinstance.Release()
 	os.Exit(0)
+}
+
+func toHotkeyBinding(binding configuration.KeyBinding) hotkey.KeyBinding {
+	return hotkey.KeyBinding{
+		Modifier: binding.Modifier,
+		Key:      binding.Key,
+	}
+}
+
+func letterOptions() []string {
+	letters := make([]string, 0, 26)
+	for ch := 'A'; ch <= 'Z'; ch++ {
+		letters = append(letters, string(ch))
+	}
+	return letters
 }

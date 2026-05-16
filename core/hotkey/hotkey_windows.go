@@ -10,7 +10,11 @@ package hotkey
 #include "hotkey_windows/hotkey.c"
 */
 import "C"
-import "fmt"
+import (
+	"fmt"
+
+	"fyne.io/fyne/v2"
+)
 
 var hotkeyHandler func(int)
 
@@ -21,26 +25,80 @@ func handleHotkey(id C.int) {
 	}
 }
 
-func SetupHotkey(handler func(int)) {
+func SetupHotkey(toggle KeyBinding, exit KeyBinding, handler func(int)) {
 	hotkeyHandler = handler
-	C.setupHotkey()
+	toggle = normalizeHotkeyBinding(toggle, KeyBinding{Modifier: "Alt", Key: "R"})
+	exit = normalizeHotkeyBinding(exit, KeyBinding{Modifier: "Alt", Key: "Q"})
+	C.setupHotkeys(
+		C.uint(hotkeyModifier(toggle.Modifier)),
+		C.uint(hotkeyKey(toggle.Key)),
+		C.uint(hotkeyModifier(exit.Modifier)),
+		C.uint(hotkeyKey(exit.Key)),
+	)
 }
 
 func (hm *HotkeyManager) ListenHotkeys() {
 	go func() {
-		SetupHotkey(func(id int) {
+		SetupHotkey(hm.ToggleHotkey, hm.ExitHotkey, func(id int) {
 			switch id {
 			case 1:
 				if hm.ToggleHandler != nil {
-					hm.ToggleHandler()
+					fyne.Do(hm.ToggleHandler)
 				}
-			case 2:
+			case 2, 3:
 				if hm.ExitHandler != nil {
-					hm.ExitHandler()
+					fyne.Do(hm.ExitHandler)
+				}
+			case 4:
+				if hm.PrefsHandler != nil {
+					fyne.Do(hm.PrefsHandler)
+				}
+			case 5:
+				if hm.AboutHandler != nil {
+					fyne.Do(hm.AboutHandler)
 				}
 			default:
 				fmt.Printf("unknown hotkey id: %d\n", id)
 			}
 		})
 	}()
+}
+
+func normalizeHotkeyBinding(binding KeyBinding, fallback KeyBinding) KeyBinding {
+	if hotkeyModifier(binding.Modifier) == 0 {
+		binding.Modifier = fallback.Modifier
+	}
+	if hotkeyKey(binding.Key) == 0 {
+		binding.Key = fallback.Key
+	}
+	return binding
+}
+
+func hotkeyModifier(value string) uint32 {
+	switch value {
+	case "Ctrl":
+		return 0x0002
+	case "Shift":
+		return 0x0004
+	case "Ctrl+Alt":
+		return 0x0002 | 0x0001
+	case "Alt":
+		return 0x0001
+	default:
+		return 0
+	}
+}
+
+func hotkeyKey(value string) uint32 {
+	if len(value) != 1 {
+		return 0
+	}
+	key := value[0]
+	if key >= 'a' && key <= 'z' {
+		key -= 'a' - 'A'
+	}
+	if key < 'A' || key > 'Z' {
+		return 0
+	}
+	return uint32(key)
 }
