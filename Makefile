@@ -3,7 +3,10 @@ GO = go
 OUTPUT_DIR = build
 BINARY_NAME = goFinder
 LDFLAGS_LINUX = 
-LDFLAGS_WINDOWS = -ldflags="-H=windowsgui"
+LDFLAGS_WINDOWS = -ldflags="-H=windowsgui -s -w"
+WINDRES = windres
+WINDOWS_ICON_RC = $(CMD_DIR)/gofinder.rc
+WINDOWS_ICON_SYSO = $(CMD_DIR)/gofinder_windows.syso
 
 # Directorios
 CMD_DIR = ./cmd
@@ -29,8 +32,10 @@ build-darwin:
 
 # Compilar para Windows
 build-windows:
-	mkdir -p $(OUTPUT_DIR)
-	GOOS=windows GOARCH=amd64 $(GO) build $(LDFLAGS_WINDOWS) -o $(OUTPUT_DIR)/$(BINARY_NAME).exe $(CMD_DIR)
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1
+
+$(WINDOWS_ICON_SYSO): $(WINDOWS_ICON_RC) core/resource/assets/GoFinder.ico
+	$(WINDRES) -O coff -F pe-x86-64 -o $(WINDOWS_ICON_SYSO) $(WINDOWS_ICON_RC)
 
 # Compilar para todas las plataformas
 build: build-linux build-darwin build-windows
@@ -38,6 +43,7 @@ build: build-linux build-darwin build-windows
 # Limpiar artefactos
 clean:
 	rm -rf $(OUTPUT_DIR)/*
+	rm -f $(WINDOWS_ICON_SYSO)
 
 # Ejecutar pruebas
 test:

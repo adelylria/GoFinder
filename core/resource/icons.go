@@ -36,3 +36,10 @@ func GetEmbedAppIcon() fyne.Resource {
 	}
 	return fyne.NewStaticResource(iconName, appIconBytes)
 }
+
+func GetEmbedAppIconBytes() []byte {
+	if len(appIconBytes) == 0 {
+		return nil
+	}
+	return append([]byte(nil), appIconBytes...)
+}

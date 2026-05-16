@@ -4,6 +4,7 @@ go 1.24.6
 
 require (
 	fyne.io/fyne/v2 v2.6.3
+	fyne.io/systray v1.11.0
 	github.com/fyne-io/image v0.1.1
 	github.com/google/uuid v1.6.0
 	github.com/lxn/win v0.0.0-20210218163916-a377121e959e
@@ -12,7 +13,6 @@ require (
 )
 
 require (
-	fyne.io/systray v1.11.0 // indirect
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fredbi/uri v1.1.0 // indirect

@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/adelylria/GoFinder/core/hotkey"
+	"github.com/adelylria/GoFinder/core/i18n"
 )
 
 // theme.go
@@ -39,7 +40,7 @@ func DefaultTheme() *ThemeConfig {
 		WindowSize:       fyne.NewSize(600, 500),
 		FixedWindow:      true,
 		InputHeight:      44,
-		InputPlaceholder: "Buscar aplicación...",
+		InputPlaceholder: i18n.T(i18n.SearchPlaceholder),
 		ListItemHeight:   56,
 		Padding:          8,
 		CornerRadius:     6,

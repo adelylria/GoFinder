@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/adelylria/GoFinder/core/global"
+	"github.com/adelylria/GoFinder/core/i18n"
 	"github.com/adelylria/GoFinder/core/resource"
 	"github.com/adelylria/GoFinder/logic"
 	"github.com/adelylria/GoFinder/models"
@@ -52,12 +53,13 @@ func NewLauncher(apps []models.Application) *Launcher {
 
 	hm := hotkey.NewHotkeyManager(
 		func() { toggleWindowVisibility(appState) },
-		exitApplication,
+		quitApplication,
 	)
 
 	if hm != nil {
 		hm.ListenHotkeys()
 	}
+	startSystemTray(appState, resource.GetEmbedAppIconBytes())
 
 	return &Launcher{
 		window:        window,
@@ -204,10 +206,10 @@ func (l *Launcher) executeSelectedApp() {
 
 	appID := l.filteredIDs[l.selectedIndex]
 	app := l.appMap[appID]
-	log.Printf("Ejecutando: %s (%s)", app.Name, app.Exec)
+	log.Printf(i18n.T(i18n.LogRunningApp), app.Name, app.Exec)
 
 	if err := logic.RunApplication(app); err != nil {
-		log.Printf("Error al ejecutar %s: %v", app.Name, err)
+		log.Printf(i18n.T(i18n.LogRunAppError), app.Name, err)
 	}
 
 	l.clearList()
@@ -271,20 +273,29 @@ func toggleWindowVisibility(state *models.AppState) {
 	shouldShow := !state.Visible
 	state.Mu.Unlock()
 
-	go fyne.Do(func() {
-		if shouldShow {
+	setWindowVisible(state, shouldShow)
+}
+
+func setWindowVisible(state *models.AppState, visible bool) {
+	state.Mu.Lock()
+	if state.Visible == visible {
+		state.Mu.Unlock()
+		return
+	}
+	state.Visible = visible
+	state.Mu.Unlock()
+
+	fyne.Do(func() {
+		if visible {
 			state.Window.Show()
+			state.Window.RequestFocus()
 		} else {
 			state.Window.Hide()
 		}
 	})
-
-	state.Mu.Lock()
-	state.Visible = shouldShow
-	state.Mu.Unlock()
 }
 
-func exitApplication() {
-	fmt.Println("Saliendo...")
+func quitApplication() {
+	fmt.Println(i18n.T(i18n.AppExitMessage))
 	os.Exit(0)
 }

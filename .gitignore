@@ -9,6 +9,7 @@
 *.dylib
 *.rc
 *.syso
+!cmd/gofinder.rc
 
 # Test binary, built with `go test -c`
 *.test
