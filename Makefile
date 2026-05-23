@@ -16,15 +16,11 @@ ifeq ($(OS),Windows_NT)
 	DEFAULT_BUILD := build-windows
 else
 	UNAME_S := $(shell uname -s 2>/dev/null)
-	ifeq ($(UNAME_S),Darwin)
-		DEFAULT_BUILD := build-darwin
-	else
-		DEFAULT_BUILD := build-linux
-	endif
+	DEFAULT_BUILD := build-linux
 endif
 
 # Objetivos
-.PHONY: all run build build-all build-linux build-darwin build-windows clean test help
+.PHONY: all run build build-all build-linux build-windows clean test help
 
 all: $(DEFAULT_BUILD)
 
@@ -37,11 +33,6 @@ build-linux:
 	mkdir -p $(OUTPUT_DIR)
 	GOOS=linux GOARCH=amd64 $(GO) build $(LDFLAGS_LINUX) -o $(OUTPUT_DIR)/$(BINARY_NAME) $(CMD_DIR)
 
-# Compilar para macOS
-build-darwin:
-	mkdir -p $(OUTPUT_DIR)
-	GOOS=darwin GOARCH=amd64 $(GO) build $(LDFLAGS_LINUX) -o $(OUTPUT_DIR)/$(BINARY_NAME) $(CMD_DIR)
-
 # Compilar para Windows
 build-windows:
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1
@@ -52,8 +43,8 @@ $(WINDOWS_ICON_SYSO): $(WINDOWS_ICON_RC) core/resource/assets/GoFinder.ico
 # Compilar solo para la plataforma actual
 build: $(DEFAULT_BUILD)
 
-# Compilar para todas las plataformas (CI / release; requiere toolchains de cross-compile)
-build-all: build-linux build-darwin build-windows
+# Compilar para todas las plataformas soportadas (requiere toolchains de cross-compile)
+build-all: build-linux build-windows
 
 # Limpiar artefactos
 clean:
@@ -69,9 +60,8 @@ help:
 	@echo "Comandos disponibles:"
 	@echo "  make run          		- Ejecuta el programa"
 	@echo "  make / make build 		- Compila para la plataforma actual"
-	@echo "  make build-all    		- Compila Linux, macOS y Windows"
+	@echo "  make build-all    		- Compila Linux y Windows"
 	@echo "  make build-linux  		- Compila para Linux"
 	@echo "  make build-windows 	- Compila para Windows"
-	@echo "  make build-darwin   	- Compila para macOS"
 	@echo "  make clean        		- Limpia artefactos"
 	@echo "  make test         		- Ejecuta pruebas"

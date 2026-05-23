@@ -12,9 +12,7 @@
 
     - Windows is **partially** supported (extraction of icons from executables and shortcuts, global hotkey, tray integration). 
 
-    - Linux implements discovery via `.desktop` files and returns `Application` objects but lacks some integrations (tray behavior and advanced icon extraction). 
-
-    - macOS is scaffolded and ready for implementation.
+    - Linux implements discovery via `.desktop` files and returns `Application` objects but lacks some integrations (tray behavior and advanced icon extraction).
 
 ---
 
@@ -41,7 +39,7 @@ models/             # data models (Application, AppState, ...)
 
 # Key design & architecture
 
-* **Pluggable AppFinders**: `logic.AppFinder` is an interface implemented per OS (`windowsAppFinder`, `linuxAppFinder`, `darwinAppFinder`). `FindApplications()` picks the correct implementation at runtime.
+* **Pluggable AppFinders**: `logic.AppFinder` is an interface implemented per OS (`windowsAppFinder`, `linuxAppFinder`). `FindApplications()` picks the correct implementation at runtime.
 * **Separation of concerns**: `core` holds UI and platform-agnostic code, `logic` contains OS-specific implementations (discovery, icon extraction, runner).
 * **Icon pipeline (Windows)**: try image files (`.png`, `.ico`), `ExtractIconEx` with index, `SHGetFileInfo`, or as a last resort the executable icon. `HICON` objects are converted to Go `image.Image`, encoded as PNG and wrapped in `fyne.Resource`.
 * **Caching**: icons are cached in-memory (`map[string]fyne.Resource`) protected by `sync.RWMutex` to avoid repeated extraction.
@@ -62,8 +60,8 @@ Build is handled via a **Makefile**. Common commands:
 ```bash
 make run             # Run GoFinder locally
 make build           # Build for the current platform (binary in ./build)
-make build-windows   # Cross-compile for Windows
-make build-linux-darwin # Cross-compile for Linux and macOS
+make build-windows   # Build for Windows
+make build-linux     # Build for Linux
 make clean           # Clean build artifacts
 ```
 
@@ -109,7 +107,6 @@ Add or verify the following in `go.mod`:
 # Roadmap
 
 * \[\~] Linux — `.desktop` discovery implemented; add tray and enhanced icon resolution.
-* \[\~] Darwin — Investigate
 * \[\~] Tests
 * \[\~] Logging
 * \[\~] Themes 

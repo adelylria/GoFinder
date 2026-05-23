@@ -1,4 +1,4 @@
-//go:build linux || darwin
+//go:build linux
 
 // run_unix.go
 package logic
