@@ -39,32 +39,43 @@ func SetupHotkey(toggle KeyBinding, exit KeyBinding, handler func(int)) {
 
 func (hm *HotkeyManager) ListenHotkeys() {
 	go func() {
-		SetupHotkey(hm.ToggleHotkey, hm.ExitHotkey, func(id int) {
-			switch id {
-			case 1:
+		exitHandler := func() {
+			if hm.ExitHandler != nil {
+				fyne.Do(hm.ExitHandler)
+			}
+		}
+
+		handlers := map[int]func(){
+			1: func() {
 				if hm.ToggleHandler != nil {
 					fyne.Do(hm.ToggleHandler)
 				}
-			case 2, 3:
-				if hm.ExitHandler != nil {
-					fyne.Do(hm.ExitHandler)
-				}
-			case 4:
+			},
+			2: exitHandler,
+			3: exitHandler,
+			4: func() {
 				if hm.PrefsHandler != nil {
 					fyne.Do(hm.PrefsHandler)
 				}
-			case 5:
+			},
+			5: func() {
 				if hm.AboutHandler != nil {
 					fyne.Do(hm.AboutHandler)
 				}
-			default:
-				fmt.Printf("unknown hotkey id: %d\n", id)
+			},
+		}
+
+		SetupHotkey(hm.ToggleHotkey, hm.ExitHotkey, func(id int) {
+			if h, ok := handlers[id]; ok {
+				h()
+				return
 			}
+			fmt.Printf("unknown hotkey id: %d\n", id)
 		})
 	}()
 }
 
-func normalizeHotkeyBinding(binding KeyBinding, fallback KeyBinding) KeyBinding {
+func normalizeHotkeyBinding(binding, fallback KeyBinding) KeyBinding {
 	if hotkeyModifier(binding.Modifier) == 0 {
 		binding.Modifier = fallback.Modifier
 	}
