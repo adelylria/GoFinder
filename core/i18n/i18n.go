@@ -1,6 +1,8 @@
 package i18n
 
 import (
+	"embed"
+	"encoding/json"
 	"os"
 	"strings"
 	"sync"
@@ -49,94 +51,34 @@ var (
 	currentLang = DetectLanguage()
 )
 
-var translations = map[Language]map[string]string{
-	English: {
-		SearchPlaceholder: "Search application...",
-		TrayTooltip:       "GoFinder",
-		TrayToggleTitle:   "Show/Hide",
-		TrayToggleTooltip: "Show or hide GoFinder",
-		TrayMinimizeTitle: "Minimize",
-		TrayMinimizeTip:   "Hide GoFinder in the system tray",
-		TrayQuitTitle:     "Quit",
-		TrayQuitTooltip:   "Close GoFinder",
-		AppExitMessage:    "Exiting...",
-		LogRunningApp:     "Running: %s (%s)",
-		LogRunAppError:    "Error running %s: %v",
-		SettingsToggle:    "Show",
-		SettingsQuit:      "Quit",
-		SettingsAutoStart: "Start with Windows",
-		SettingsHidden:    "Start hidden",
-		SettingsSaved:     "Saved",
-		SettingsRestart:   "Restart to apply shortcuts",
-		SettingsHotkeys:   "Keyboard shortcuts",
-		SettingsGeneral:   "General",
-		MenuFile:          "File",
-		MenuConfig:        "Settings",
-		MenuHelp:          "Help",
-		MenuExit:          "Exit",
-		MenuPreferences:   "Preferences...",
-		MenuAbout:         "About GoFinder",
-		DialogClose:       "Close",
-		AboutText:         "GoFinder — fast application launcher.",
-	},
-	Spanish: {
-		SearchPlaceholder: "Buscar aplicación...",
-		TrayTooltip:       "GoFinder",
-		TrayToggleTitle:   "Mostrar/Ocultar",
-		TrayToggleTooltip: "Mostrar u ocultar GoFinder",
-		TrayMinimizeTitle: "Minimizar",
-		TrayMinimizeTip:   "Ocultar GoFinder en la bandeja",
-		TrayQuitTitle:     "Salir",
-		TrayQuitTooltip:   "Cerrar GoFinder",
-		AppExitMessage:    "Saliendo...",
-		LogRunningApp:     "Ejecutando: %s (%s)",
-		LogRunAppError:    "Error al ejecutar %s: %v",
-		SettingsToggle:    "Mostrar",
-		SettingsQuit:      "Salir",
-		SettingsAutoStart: "Iniciar con Windows",
-		SettingsHidden:    "Iniciar oculto",
-		SettingsSaved:     "Guardado",
-		SettingsRestart:   "Reinicia para aplicar atajos",
-		SettingsHotkeys:   "Atajos de teclado",
-		SettingsGeneral:   "General",
-		MenuFile:          "Archivo",
-		MenuConfig:        "Configuración",
-		MenuHelp:          "Ayuda",
-		MenuExit:          "Salir",
-		MenuPreferences:   "Preferencias...",
-		MenuAbout:         "Acerca de GoFinder",
-		DialogClose:       "Cerrar",
-		AboutText:         "GoFinder — lanzador de aplicaciones rápido.",
-	},
-	Catalan: {
-		SearchPlaceholder: "Cerca una aplicació...",
-		TrayTooltip:       "GoFinder",
-		TrayToggleTitle:   "Mostra/Amaga",
-		TrayToggleTooltip: "Mostra o amaga GoFinder",
-		TrayMinimizeTitle: "Minimitza",
-		TrayMinimizeTip:   "Amaga GoFinder a la safata del sistema",
-		TrayQuitTitle:     "Surt",
-		TrayQuitTooltip:   "Tanca GoFinder",
-		AppExitMessage:    "Sortint...",
-		LogRunningApp:     "Executant: %s (%s)",
-		LogRunAppError:    "Error en executar %s: %v",
-		SettingsToggle:    "Mostra",
-		SettingsQuit:      "Surt",
-		SettingsAutoStart: "Inicia amb Windows",
-		SettingsHidden:    "Inicia amagat",
-		SettingsSaved:     "Desat",
-		SettingsRestart:   "Reinicia per aplicar dreceres",
-		SettingsHotkeys:   "Dreceres de teclat",
-		SettingsGeneral:   "General",
-		MenuFile:          "Fitxer",
-		MenuConfig:        "Configuració",
-		MenuHelp:          "Ajuda",
-		MenuExit:          "Surt",
-		MenuPreferences:   "Preferències...",
-		MenuAbout:         "Quant a GoFinder",
-		DialogClose:       "Tanca",
-		AboutText:         "GoFinder — llançador d'aplicacions ràpid.",
-	},
+//go:embed locales/en.json locales/es.json locales/ca.json
+var localeFS embed.FS
+
+var translations = make(map[Language]map[string]string)
+
+func init() {
+	// load embedded JSON locales
+	files := map[Language]string{
+		English: "locales/en.json",
+		Spanish: "locales/es.json",
+		Catalan: "locales/ca.json",
+	}
+	for lang, file := range files {
+		data, err := localeFS.ReadFile(file)
+		if err != nil {
+			// if embed read fails, keep translations empty for that lang
+			continue
+		}
+		var m map[string]string
+		if err := json.Unmarshal(data, &m); err != nil {
+			continue
+		}
+		translations[lang] = m
+	}
+	// ensure English exists as a fallback
+	if _, ok := translations[English]; !ok {
+		translations[English] = map[string]string{}
+	}
 }
 
 func DetectLanguage() Language {
