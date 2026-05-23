@@ -63,6 +63,13 @@ func findWindowsApplications() []models.Application {
 	seen := make(map[string]bool)
 	desktopDir := filepath.Join(os.Getenv("USERPROFILE"), "Desktop")
 
+	addIfShortcut := func(path string) {
+		if app := ProcessWindowsShortcut(path, seen); app != nil {
+			apps = append(apps, *app)
+			fmt.Printf("Añadida: %s -> %s\n", app.Name, app.Exec)
+		}
+	}
+
 	for _, dir := range common.GetAppDirs() {
 		fmt.Println("Escaneando directorio:", dir)
 		absDir, _ := filepath.Abs(dir)
@@ -74,7 +81,6 @@ func findWindowsApplications() []models.Application {
 				fmt.Printf("Error leyendo escritorio: %v\n", err)
 				continue
 			}
-
 			for _, file := range files {
 				if file.IsDir() {
 					continue
@@ -83,36 +89,28 @@ func findWindowsApplications() []models.Application {
 				if !strings.HasSuffix(name, ".lnk") {
 					continue
 				}
-
-				path := filepath.Join(dir, file.Name())
-				if app := ProcessWindowsShortcut(path, seen); app != nil {
-					apps = append(apps, *app)
-					fmt.Printf("Añadida: %s -> %s\n", app.Name, app.Exec)
-				}
+				addIfShortcut(filepath.Join(dir, file.Name()))
 			}
-		} else {
-			// Escaneo recursivo para otros directorios
-			err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					fmt.Printf("Error accediendo %s: %v\n", path, err)
-					return nil
-				}
-				if info.IsDir() {
-					return nil
-				}
-				if !strings.HasSuffix(strings.ToLower(path), ".lnk") {
-					return nil
-				}
+			continue
+		}
 
-				if app := ProcessWindowsShortcut(path, seen); app != nil {
-					apps = append(apps, *app)
-					fmt.Printf("Añadida: %s -> %s\n", app.Name, app.Exec)
-				}
-				return nil
-			})
+		// Escaneo recursivo para otros directorios
+		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				fmt.Printf("Error recorriendo %s: %v\n", dir, err)
+				fmt.Printf("Error accediendo %s: %v\n", path, err)
+				return nil
 			}
+			if info.IsDir() {
+				return nil
+			}
+			if !strings.HasSuffix(strings.ToLower(path), ".lnk") {
+				return nil
+			}
+			addIfShortcut(path)
+			return nil
+		})
+		if err != nil {
+			fmt.Printf("Error recorriendo %s: %v\n", dir, err)
 		}
 	}
 	return apps
