@@ -150,7 +150,7 @@ func (t *ThemeConfig) Padded(content fyne.CanvasObject) *fyne.Container {
 	return container.NewPadded(content)
 }
 
-func (t *ThemeConfig) NewBorderWithInputTop(input fyne.CanvasObject, body fyne.CanvasObject) *fyne.Container {
+func (t *ThemeConfig) NewBorderWithInputTop(input, body fyne.CanvasObject) *fyne.Container {
 	// Border con input arriba y body en el centro
 	return container.NewBorder(input, nil, nil, nil, body)
 }
