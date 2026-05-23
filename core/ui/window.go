@@ -108,29 +108,16 @@ func (t *ThemeConfig) UpdateListItemDefault(id widget.ListItemID, obj fyne.Canva
 		return
 	}
 
-	bg := stack.Objects[0].(*canvas.Rectangle)
-	content := stack.Objects[1].(*fyne.Container)
-
-	// content tiene HBox(icon, VBox(label))
-	if len(content.Objects) > 0 {
-		iconWidget, ok := content.Objects[0].(*widget.Icon)
-		if ok {
-			if iconRes != nil {
-				iconWidget.SetResource(iconRes)
-				iconWidget.Show()
-			} else {
-				iconWidget.Hide()
-			}
-		}
-		// label dentro del VBox
-		if len(content.Objects) > 1 {
-			vbox := content.Objects[1].(*fyne.Container)
-			if len(vbox.Objects) > 0 {
-				label := vbox.Objects[0].(*widget.Label)
-				label.SetText(name)
-			}
-		}
+	bg, ok := stack.Objects[0].(*canvas.Rectangle)
+	if !ok {
+		return
 	}
+	content, ok := stack.Objects[1].(*fyne.Container)
+	if !ok {
+		return
+	}
+
+	t.updateListItemContent(content, name, iconRes)
 
 	if selected {
 		bg.Show()
@@ -138,6 +125,34 @@ func (t *ThemeConfig) UpdateListItemDefault(id widget.ListItemID, obj fyne.Canva
 		bg.Hide()
 	}
 	bg.Refresh()
+}
+
+// updateListItemContent actualiza el icono y la etiqueta dentro del contenedor de contenido
+// del elemento de la lista. Extraído a helper para reducir la complejidad cognitiva.
+func (t *ThemeConfig) updateListItemContent(content *fyne.Container, name string, iconRes fyne.Resource) {
+	if len(content.Objects) == 0 {
+		return
+	}
+
+	if iconWidget, ok := content.Objects[0].(*widget.Icon); ok {
+		if iconRes != nil {
+			iconWidget.SetResource(iconRes)
+			iconWidget.Show()
+		} else {
+			iconWidget.Hide()
+		}
+	}
+
+	if len(content.Objects) <= 1 {
+		return
+	}
+	vbox, ok := content.Objects[1].(*fyne.Container)
+	if !ok || len(vbox.Objects) == 0 {
+		return
+	}
+	if label, ok := vbox.Objects[0].(*widget.Label); ok {
+		label.SetText(name)
+	}
 }
 
 // ComputeListItemHeight devuelve la altura recomendada para un item según el tema.
