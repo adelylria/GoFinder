@@ -1,5 +1,5 @@
 #ifdef _WIN32
-#include <windows.h>
+#include <Windows.h>
 #include "hotkey.h"
 
 // Declaración de la función Go (se define en Go via //export)
