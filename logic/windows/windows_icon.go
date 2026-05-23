@@ -105,19 +105,52 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 		return nil, errors.New("hIcon inválido")
 	}
 
+	iconInfo, iconCleanup, err := getIconInfoCleanup(hIcon)
+	if err != nil {
+		return nil, err
+	}
+	defer iconCleanup()
+
+	width, height := getIconDimensions(iconInfo)
+
+	_, hdcMem, dcCleanup, err := prepareDCs()
+	if err != nil {
+		return nil, err
+	}
+	defer dcCleanup()
+
+	bitsPtr, deselect, dibCleanup, err := createDIBSectionAndSelect(hdcMem, width, height)
+	if err != nil {
+		return nil, err
+	}
+	defer dibCleanup()
+	defer deselect()
+
+	if err := drawIconToHdc(hdcMem, hIcon, width, height); err != nil {
+		return nil, err
+	}
+
+	img := bitsToNRGBA(bitsPtr, width, height)
+	return img, nil
+}
+
+func getIconInfoCleanup(hIcon win.HICON) (win.ICONINFO, func(), error) {
 	var iconInfo win.ICONINFO
 	if !win.GetIconInfo(hIcon, &iconInfo) {
-		return nil, errors.New("GetIconInfo falló")
+		return iconInfo, nil, errors.New("GetIconInfo falló")
 	}
-	defer func() {
+	cleanup := func() {
 		if iconInfo.HbmColor != 0 {
 			win.DeleteObject(win.HGDIOBJ(iconInfo.HbmColor))
 		}
 		if iconInfo.HbmMask != 0 {
 			win.DeleteObject(win.HGDIOBJ(iconInfo.HbmMask))
 		}
-	}()
+	}
+	return iconInfo, cleanup, nil
+}
 
+func getIconDimensions(iconInfo win.ICONINFO) (int, int) {
 	width, height := 32, 32
 	if iconInfo.HbmColor != 0 {
 		var bmp win.BITMAP
@@ -126,19 +159,27 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 			height = int(bmp.BmHeight)
 		}
 	}
+	return width, height
+}
 
+func prepareDCs() (win.HDC, win.HDC, func(), error) {
 	hdcScreen := win.GetDC(0)
 	if hdcScreen == 0 {
-		return nil, errors.New("GetDC falló")
+		return 0, 0, nil, errors.New("GetDC falló")
 	}
-	defer win.ReleaseDC(0, hdcScreen)
-
 	hdcMem := win.CreateCompatibleDC(hdcScreen)
 	if hdcMem == 0 {
-		return nil, errors.New("CreateCompatibleDC falló")
+		win.ReleaseDC(0, hdcScreen)
+		return 0, 0, nil, errors.New("CreateCompatibleDC falló")
 	}
-	defer win.DeleteDC(hdcMem)
+	cleanup := func() {
+		win.DeleteDC(hdcMem)
+		win.ReleaseDC(0, hdcScreen)
+	}
+	return hdcScreen, hdcMem, cleanup, nil
+}
 
+func createDIBSectionAndSelect(hdcMem win.HDC, width, height int) (unsafe.Pointer, func(), func(), error) {
 	var bi win.BITMAPINFO
 	bi.BmiHeader = win.BITMAPINFOHEADER{
 		BiSize:        uint32(unsafe.Sizeof(win.BITMAPINFOHEADER{})),
@@ -148,7 +189,6 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 		BiBitCount:    32,
 		BiCompression: win.BI_RGB,
 	}
-
 	var bitsPtr unsafe.Pointer
 	hBitmap, _, err := procCreateDIBSection.Call(
 		uintptr(hdcMem),
@@ -159,14 +199,19 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 		0,
 	)
 	if hBitmap == 0 {
-		return nil, fmt.Errorf("CreateDIBSection falló: %v", err)
+		return nil, nil, nil, fmt.Errorf("CreateDIBSection falló: %v", err)
 	}
-	defer win.DeleteObject(win.HGDIOBJ(hBitmap))
-
+	cleanup := func() {
+		win.DeleteObject(win.HGDIOBJ(hBitmap))
+	}
 	oldObj := win.SelectObject(hdcMem, win.HGDIOBJ(hBitmap))
-	defer win.SelectObject(hdcMem, oldObj)
+	deselect := func() {
+		win.SelectObject(hdcMem, oldObj)
+	}
+	return bitsPtr, deselect, cleanup, nil
+}
 
-	// Dibujar icono
+func drawIconToHdc(hdcMem win.HDC, hIcon win.HICON, width, height int) error {
 	ret, _, _ := procDrawIconEx.Call(
 		uintptr(hdcMem),
 		0,
@@ -179,10 +224,12 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 		uintptr(win.DI_NORMAL),
 	)
 	if ret == 0 {
-		return nil, errors.New("DrawIconEx falló")
+		return errors.New("DrawIconEx falló")
 	}
+	return nil
+}
 
-	// Convertir a imagen Go
+func bitsToNRGBA(bitsPtr unsafe.Pointer, width, height int) image.Image {
 	byteLen := width * height * 4
 	raw := unsafe.Slice((*byte)(bitsPtr), byteLen)
 	img := image.NewNRGBA(image.Rect(0, 0, width, height))
@@ -197,8 +244,7 @@ func IconHandleToImage(hIcon win.HICON) (image.Image, error) {
 			img.SetNRGBA(x, y, color.NRGBA{R: r, G: g, B: b, A: a})
 		}
 	}
-
-	return img, nil
+	return img
 }
 
 // ---- Resource Helpers ----
@@ -227,64 +273,83 @@ func resolveWindowsShortcut(path string) models.Application {
 	app := models.NewApplication()
 	app.Name = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 
-	lnk, err := lnk.File(path)
+	lf, err := lnk.File(path)
 	if err != nil {
 		fmt.Printf("Error al analizar acceso directo %s: %v\n", path, err)
 		return app
 	}
 
-	// Obtener ruta de destino
-	if lnk.LinkInfo.LocalBasePath != "" {
-		app.Exec = lnk.LinkInfo.LocalBasePath
-		if lnk.LinkInfo.CommonPathSuffix != "" {
-			app.Exec = filepath.Join(app.Exec, lnk.LinkInfo.CommonPathSuffix)
-		}
-	} else if lnk.StringData.NameString != "" {
-		if filepath.IsAbs(lnk.StringData.NameString) {
-			app.Exec = lnk.StringData.NameString
-		}
-	}
+	app.Exec = extractExecFromLnk(lf)
+	app.Icon = extractIconFromLnk(lf, app.Exec)
 
-	// Obtener ubicación del icono
-	if lnk.StringData.IconLocation != "" {
-		app.Icon = lnk.StringData.IconLocation
-	} else if lnk.LinkInfo.LocalBasePath != "" {
-		app.Icon = app.Exec
-	}
-
-	// Normalizar y validar rutas
-	if app.Exec != "" {
-		expandedExec := os.ExpandEnv(app.Exec)
-		expandedExec, err = filepath.Abs(expandedExec)
-		if err == nil {
-			if _, err := os.Stat(expandedExec); os.IsNotExist(err) {
-				fmt.Printf("Advertencia: La ruta de ejecución %s no existe\n", expandedExec)
-				app.Exec = ""
-			} else if os.IsPermission(err) {
-				fmt.Printf("Advertencia: Sin permisos para acceder a %s\n", expandedExec)
-				app.Exec = ""
-			} else {
-				app.Exec = expandedExec
-			}
-		}
-	}
-
-	if app.Icon != "" {
-		expandedIcon := os.ExpandEnv(app.Icon)
-		expandedIcon, err = filepath.Abs(expandedIcon)
-		if err == nil {
-			// Permitir .dll y .exe para íconos
-			if _, err := os.Stat(expandedIcon); os.IsNotExist(err) && !strings.HasSuffix(strings.ToLower(expandedIcon), ".dll") && !strings.HasSuffix(strings.ToLower(expandedIcon), ".exe") {
-				fmt.Printf("Advertencia: La ruta del icono %s no existe\n", expandedIcon)
-				app.Icon = app.Exec // Usar ejecutable como respaldo
-			} else if os.IsPermission(err) {
-				fmt.Printf("Advertencia: Sin permisos para acceder al icono %s\n", expandedIcon)
-				app.Icon = app.Exec
-			} else {
-				app.Icon = expandedIcon
-			}
-		}
-	}
+	normalizeExec(&app)
+	normalizeIcon(&app)
 
 	return app
+}
+
+func extractExecFromLnk(lf lnk.LnkFile) string {
+	if lf.LinkInfo.LocalBasePath != "" {
+		exec := lf.LinkInfo.LocalBasePath
+		if lf.LinkInfo.CommonPathSuffix != "" {
+			exec = filepath.Join(exec, lf.LinkInfo.CommonPathSuffix)
+		}
+		return exec
+	}
+	if lf.StringData.NameString != "" && filepath.IsAbs(lf.StringData.NameString) {
+		return lf.StringData.NameString
+	}
+	return ""
+}
+
+func extractIconFromLnk(lf lnk.LnkFile, defaultExec string) string {
+	if lf.StringData.IconLocation != "" {
+		return lf.StringData.IconLocation
+	}
+	if lf.LinkInfo.LocalBasePath != "" {
+		return defaultExec
+	}
+	return ""
+}
+
+func normalizeExec(app *models.Application) {
+	if app.Exec == "" {
+		return
+	}
+	expandedExec := os.ExpandEnv(app.Exec)
+	absExec, err := filepath.Abs(expandedExec)
+	if err != nil {
+		return
+	}
+	if _, statErr := os.Stat(absExec); os.IsNotExist(statErr) {
+		fmt.Printf("Advertencia: La ruta de ejecución %s no existe\n", absExec)
+		app.Exec = ""
+	} else if os.IsPermission(statErr) {
+		fmt.Printf("Advertencia: Sin permisos para acceder a %s\n", absExec)
+		app.Exec = ""
+	} else {
+		app.Exec = absExec
+	}
+}
+
+func normalizeIcon(app *models.Application) {
+	if app.Icon == "" {
+		return
+	}
+	expandedIcon := os.ExpandEnv(app.Icon)
+	absIcon, err := filepath.Abs(expandedIcon)
+	if err != nil {
+		return
+	}
+	lower := strings.ToLower(absIcon)
+	allowDllExe := strings.HasSuffix(lower, ".dll") || strings.HasSuffix(lower, ".exe")
+	if _, statErr := os.Stat(absIcon); os.IsNotExist(statErr) && !allowDllExe {
+		fmt.Printf("Advertencia: La ruta del icono %s no existe\n", absIcon)
+		app.Icon = app.Exec
+	} else if os.IsPermission(statErr) {
+		fmt.Printf("Advertencia: Sin permisos para acceder al icono %s\n", absIcon)
+		app.Icon = app.Exec
+	} else {
+		app.Icon = absIcon
+	}
 }
