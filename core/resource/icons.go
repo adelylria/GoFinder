@@ -1,6 +1,8 @@
 package resource
 
 import (
+	// Import required to enable the //go:embed directive below (appIconBytes).
+	// The embed package must be imported even if not referenced directly.
 	_ "embed"
 	"os"
 	"sync"
@@ -18,7 +20,7 @@ var (
 	cachedRes    fyne.Resource
 )
 
-func GetIcon(iconPath string, iconName string) fyne.Resource {
+func GetIcon(iconPath, iconName string) fyne.Resource {
 	once.Do(func() {
 		data, err := os.ReadFile(iconPath)
 		if err != nil {

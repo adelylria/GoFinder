@@ -19,62 +19,76 @@ func LoadAppIcon(app models.Application) fyne.Resource {
 		return cached
 	}
 
-	if app.IconPath != "" {
-		cleanPath := strings.Trim(app.IconPath, `"`)
-		ext := strings.ToLower(filepath.Ext(cleanPath))
-		switch ext {
-		case ".png", ".jpg", ".jpeg":
-			if res := common.LoadImageFileToResource(cleanPath, app.Name); res != nil {
-				common.CacheSet(cacheKey, res)
-				return res
-			}
-		case ".ico":
-			if res := common.LoadICOToResource(cleanPath, app.Name); res != nil {
-				common.CacheSet(cacheKey, res)
-				return res
-			}
-		}
+	if res := loadFromIconPath(app); res != nil {
+		common.CacheSet(cacheKey, res)
+		return res
 	}
 
-	if app.IconPath != "" {
-		cleanPath := strings.Trim(app.IconPath, `"`)
-		if hIcon, err := windows.ExtractIconEx(cleanPath, app.IconIdx); err == nil {
-			if res := windows.LoadIconFromHICON(hIcon, app.Name); res != nil {
-				common.CacheSet(cacheKey, res)
-				return res
-			}
-		}
+	if res := extractFromIconPath(app); res != nil {
+		common.CacheSet(cacheKey, res)
+		return res
 	}
 
-	if app.IconPath != "" && app.IconIdx != 0 {
-		cleanPath := strings.Trim(app.IconPath, `"`)
-		if hIcon, err := windows.ExtractIconEx(cleanPath, 0); err == nil {
-			if res := windows.LoadIconFromHICON(hIcon, app.Name); res != nil {
-				common.CacheSet(cacheKey, res)
-				return res
-			}
-		}
+	if res := extractFromExec(app); res != nil {
+		common.CacheSet(cacheKey, res)
+		return res
 	}
 
-	if app.Exec != "" {
-		cleanExec := strings.Trim(app.Exec, `"`)
-		if hIcon, err := windows.ExtractIconEx(cleanExec, 0); err == nil {
-			if res := windows.LoadIconFromHICON(hIcon, app.Name); res != nil {
-				common.CacheSet(cacheKey, res)
-				return res
-			}
+	return nil
+}
+
+func loadFromIconPath(app models.Application) fyne.Resource {
+	if app.IconPath == "" {
+		return nil
+	}
+	cleanPath := strings.Trim(app.IconPath, `"`)
+	ext := strings.ToLower(filepath.Ext(cleanPath))
+	switch ext {
+	case ".png", ".jpg", ".jpeg":
+		return common.LoadImageFileToResource(cleanPath, app.Name)
+	case ".ico":
+		return common.LoadICOToResource(cleanPath, app.Name)
+	default:
+		return nil
+	}
+}
+
+func extractIconsFromPath(path string, index int, name string) fyne.Resource {
+	if path == "" {
+		return nil
+	}
+	clean := strings.Trim(path, `"`)
+	if hIcon, err := windows.ExtractIconEx(clean, index); err == nil {
+		return windows.LoadIconFromHICON(hIcon, name)
+	}
+	return nil
+}
+
+func extractFromIconPath(app models.Application) fyne.Resource {
+	if app.IconPath == "" {
+		return nil
+	}
+	if res := extractIconsFromPath(app.IconPath, app.IconIdx, app.Name); res != nil {
+		return res
+	}
+	if app.IconIdx != 0 {
+		if res := extractIconsFromPath(app.IconPath, 0, app.Name); res != nil {
+			return res
 		}
 	}
+	return nil
+}
 
-	if app.Exec != "" {
-		cleanExec := strings.Trim(app.Exec, `"`)
-		if hIcon, err := windows.SHGetFileIcon(cleanExec); err == nil {
-			if res := windows.LoadIconFromHICON(hIcon, app.Name); res != nil {
-				common.CacheSet(cacheKey, res)
-				return res
-			}
-		}
+func extractFromExec(app models.Application) fyne.Resource {
+	if app.Exec == "" {
+		return nil
 	}
-
+	cleanExec := strings.Trim(app.Exec, `"`)
+	if res := extractIconsFromPath(cleanExec, 0, app.Name); res != nil {
+		return res
+	}
+	if hIcon, err := windows.SHGetFileIcon(cleanExec); err == nil {
+		return windows.LoadIconFromHICON(hIcon, app.Name)
+	}
 	return nil
 }
