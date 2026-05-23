@@ -20,7 +20,9 @@ func startSystemTray(state *models.AppState, icon []byte) {
 	trayOnce.Do(func() {
 		go systray.Run(
 			func() { setupSystemTray(state, icon) },
-			func() {},
+			func() {
+				// Cleanup code when the system tray is exited can be added here if needed.
+			},
 		)
 	})
 }
