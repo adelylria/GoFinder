@@ -17,7 +17,7 @@ extern void handleHotkey(int id);
 #define VK_OEM_COMMA 0xBC
 #define VK_F1 0x70
 
-static void setupHotkeys(unsigned int toggleModifier, unsigned int toggleKey, unsigned int exitModifier, unsigned int exitKey) {
+void setupHotkeys(unsigned int toggleModifier, unsigned int toggleKey, unsigned int exitModifier, unsigned int exitKey) {
     RegisterHotKey(NULL, HOTKEY_ID_TOGGLE, toggleModifier, toggleKey);
     RegisterHotKey(NULL, HOTKEY_ID_QUIT, exitModifier, exitKey);
     RegisterHotKey(NULL, HOTKEY_ID_QUIT_CTRL, MOD_CONTROL, VK_Q);

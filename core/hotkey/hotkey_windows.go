@@ -7,7 +7,6 @@ package hotkey
 #cgo windows CFLAGS: -I./hotkey_windows
 #cgo windows LDFLAGS: -luser32
 #include "hotkey_windows/hotkey.h"
-#include "hotkey_windows/hotkey.c"
 */
 import "C"
 import (
