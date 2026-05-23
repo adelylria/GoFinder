@@ -74,7 +74,7 @@ func (c *Config) Normalize() {
 	c.QuitHotkey = normalizeKeyBinding(c.QuitHotkey, defaults.QuitHotkey)
 }
 
-func normalizeKeyBinding(binding KeyBinding, fallback KeyBinding) KeyBinding {
+func normalizeKeyBinding(binding, fallback KeyBinding) KeyBinding {
 	modifier := normalizeModifier(binding.Modifier)
 	key := normalizeKey(binding.Key)
 	if modifier == "" {
