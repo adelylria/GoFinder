@@ -98,28 +98,38 @@ func GoSafe(fn func()) {
 
 // writeCrashFile guarda un archivo separado con stack y metadata
 func WriteCrashFile(reason string, stack []byte) error {
-	if baseDir == "" {
-		// si no inicializado, intentar obtener una ruta temporal
-		tmp := os.TempDir()
-		baseDir = filepath.Join(tmp, "gofinder")
-		os.MkdirAll(baseDir, 0o755)
-	}
-	crashDir := filepath.Join(baseDir, "crashes")
-	if err := os.MkdirAll(crashDir, 0o755); err != nil {
-		return err
-	}
-	name := fmt.Sprintf("crash-%s.log", time.Now().Format("20060102-150405"))
-	path := filepath.Join(crashDir, name)
+	var f *os.File
+	var err error
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
+	// Prefer writing under configured baseDir (user config dir) when available.
+	if baseDir != "" {
+		crashDir := filepath.Join(baseDir, "crashes")
+		if err := os.MkdirAll(crashDir, 0o700); err != nil {
+			return err
+		}
+		name := fmt.Sprintf("crash-%s.log", time.Now().Format("20060102-150405"))
+		path := filepath.Join(crashDir, name)
+
+		// Create the file exclusively with restrictive permissions to avoid TOCTOU in public dirs.
+		f, err = os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o600)
+		if err != nil {
+			return err
+		}
+	} else {
+		// If logging system not initialized, create a secure temporary file using CreateTemp
+		// which generates an unpredictable filename in the system temp dir.
+		f, err = os.CreateTemp("", "gofinder-crash-*.log")
+		if err != nil {
+			return err
+		}
+		// Try to restrict permissions where supported.
+		_ = f.Chmod(0o600)
 	}
 	defer f.Close()
 
 	u, _ := user.Current()
 	host, _ := os.Hostname()
-	fmt.Fprintf(f, "Time: %s\nUser: %s\nHost: %s\nPID: %d\nOS: %s %s\nGo: %s\n\nReason: %s\n\nStack:\n%s\n",
+	_, _ = fmt.Fprintf(f, "Time: %s\nUser: %s\nHost: %s\nPID: %d\nOS: %s %s\nGo: %s\n\nReason: %s\n\nStack:\n%s\n",
 		time.Now().Format(time.RFC3339), u.Username, host, os.Getpid(), runtime.GOOS, runtime.GOARCH, runtime.Version(), reason, stack)
 
 	return nil
