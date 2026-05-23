@@ -63,55 +63,59 @@ func findWindowsApplications() []models.Application {
 	seen := make(map[string]bool)
 	desktopDir := filepath.Join(os.Getenv("USERPROFILE"), "Desktop")
 
-	addIfShortcut := func(path string) {
-		if app := ProcessWindowsShortcut(path, seen); app != nil {
-			apps = append(apps, *app)
-			fmt.Printf("Añadida: %s -> %s\n", app.Name, app.Exec)
-		}
-	}
-
 	for _, dir := range common.GetAppDirs() {
 		fmt.Println("Escaneando directorio:", dir)
-		absDir, _ := filepath.Abs(dir)
-		absDesktop, _ := filepath.Abs(desktopDir)
-
-		if absDir == absDesktop {
-			files, err := os.ReadDir(dir)
-			if err != nil {
-				fmt.Printf("Error leyendo escritorio: %v\n", err)
-				continue
-			}
-			for _, file := range files {
-				if file.IsDir() {
-					continue
-				}
-				name := strings.ToLower(file.Name())
-				if !strings.HasSuffix(name, ".lnk") {
-					continue
-				}
-				addIfShortcut(filepath.Join(dir, file.Name()))
-			}
-			continue
-		}
-
-		// Escaneo recursivo para otros directorios
-		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				fmt.Printf("Error accediendo %s: %v\n", path, err)
-				return nil
-			}
-			if info.IsDir() {
-				return nil
-			}
-			if !strings.HasSuffix(strings.ToLower(path), ".lnk") {
-				return nil
-			}
-			addIfShortcut(path)
-			return nil
-		})
-		if err != nil {
-			fmt.Printf("Error recorriendo %s: %v\n", dir, err)
-		}
+		addShortcutsFromDir(&apps, dir, desktopDir, seen)
 	}
 	return apps
+}
+
+func addShortcutsFromDir(apps *[]models.Application, dir string, desktopDir string, seen map[string]bool) {
+	absDir, _ := filepath.Abs(dir)
+	absDesktop, _ := filepath.Abs(desktopDir)
+
+	if absDir == absDesktop {
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			fmt.Printf("Error leyendo escritorio: %v\n", err)
+			return
+		}
+		for _, file := range files {
+			if file.IsDir() {
+				continue
+			}
+			name := strings.ToLower(file.Name())
+			if !strings.HasSuffix(name, ".lnk") {
+				continue
+			}
+			addIfShortcutPath(apps, filepath.Join(dir, file.Name()), seen)
+		}
+		return
+	}
+
+	// Escaneo recursivo para otros directorios
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			fmt.Printf("Error accediendo %s: %v\n", path, err)
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(path), ".lnk") {
+			return nil
+		}
+		addIfShortcutPath(apps, path, seen)
+		return nil
+	})
+	if err != nil {
+		fmt.Printf("Error recorriendo %s: %v\n", dir, err)
+	}
+}
+
+func addIfShortcutPath(apps *[]models.Application, path string, seen map[string]bool) {
+	if app := ProcessWindowsShortcut(path, seen); app != nil {
+		*apps = append(*apps, *app)
+		fmt.Printf("Añadida: %s -> %s\n", app.Name, app.Exec)
+	}
 }
