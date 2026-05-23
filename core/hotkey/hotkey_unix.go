@@ -3,7 +3,9 @@
 
 package hotkey
 
-func SetupHotkey(toggle KeyBinding, exit KeyBinding, handler func(int)) {}
+func SetupHotkey(toggle KeyBinding, exit KeyBinding, handler func(int)) {
+	// Hotkey setup is not implemented for Unix-like systems in this version.
+}
 
 func (hm *HotkeyManager) ListenHotkeys() {}
 
