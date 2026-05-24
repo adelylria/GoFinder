@@ -42,9 +42,9 @@ type Launcher struct {
 	settingsDialog dialog.Dialog
 	aboutDialog    dialog.Dialog
 	// prevContent stores the previous window content when navigating to settings
-	prevContent    fyne.CanvasObject
+	prevContent fyne.CanvasObject
 	// settingsOpen indicates whether the settings view is currently shown
-	settingsOpen   bool
+	settingsOpen bool
 }
 
 // NewLauncher crea el lanzador e inyecta el theme core.
