@@ -16,8 +16,8 @@ import (
 	"github.com/adelylria/GoFinder/core/configuration"
 	"github.com/adelylria/GoFinder/core/global"
 	"github.com/adelylria/GoFinder/core/i18n"
-	"github.com/adelylria/GoFinder/core/singleinstance"
 	"github.com/adelylria/GoFinder/core/resource"
+	"github.com/adelylria/GoFinder/core/singleinstance"
 	"github.com/adelylria/GoFinder/logic"
 	"github.com/adelylria/GoFinder/models"
 
@@ -28,32 +28,38 @@ import (
 // Ahora incorpora el ThemeConfig (core) para construir los widgets
 // con apariencia y tamaños centralizados.
 type Launcher struct {
-	window        fyne.Window
-	input         *hotkey.KeyEventInterceptor
-	list          *widget.List
-	appMap        map[string]models.Application
-	filteredIDs   []string
-	selectedIndex int
-	theme         *ThemeConfig
-	config        configuration.Config
+	window         fyne.Window
+	input          *hotkey.KeyEventInterceptor
+	list           *widget.List
+	appMap         map[string]models.Application
+	filteredIDs    []string
+	selectedIndex  int
+	theme          *ThemeConfig
+	config         configuration.Config
 	startHidden    bool
 	hotkeys        *hotkey.HotkeyManager
 	dialogsMu      sync.Mutex
 	settingsDialog dialog.Dialog
 	aboutDialog    dialog.Dialog
+	// prevContent stores the previous window content when navigating to settings
+	prevContent    fyne.CanvasObject
+	// settingsOpen indicates whether the settings view is currently shown
+	settingsOpen   bool
 }
 
 // NewLauncher crea el lanzador e inyecta el theme core.
 func NewLauncher(apps []models.Application) *Launcher {
 	myApp := app.New()
 
-	myApp.SetIcon(resource.GetEmbedAppIcon())
-	window := myApp.NewWindow("GoFinder")
 	cfg, err := configuration.Load()
 	if err != nil {
 		log.Printf("Error cargando configuración: %v", err)
 		cfg = configuration.DefaultConfig()
 	}
+	applyAppTheme(cfg.ThemeName)
+
+	myApp.SetIcon(resource.GetEmbedAppIcon())
+	window := myApp.NewWindow("GoFinder")
 	if err := configuration.ApplyAutoStart(cfg.AutoStart); err != nil {
 		log.Printf("Error configurando inicio automático: %v", err)
 	}

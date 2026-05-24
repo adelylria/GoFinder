@@ -112,6 +112,7 @@ func (t *ThemeConfig) UpdateListItemDefault(id widget.ListItemID, obj fyne.Canva
 	if !ok {
 		return
 	}
+	bg.FillColor = theme.Color(theme.ColorNameHover)
 	content, ok := stack.Objects[1].(*fyne.Container)
 	if !ok {
 		return

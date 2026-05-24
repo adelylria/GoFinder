@@ -20,6 +20,7 @@ type Config struct {
 	QuitHotkey   KeyBinding `json:"quit_hotkey"`
 	AutoStart    bool       `json:"auto_start"`
 	StartHidden  bool       `json:"start_hidden"`
+	ThemeName    string     `json:"theme_name"`
 }
 
 func DefaultConfig() Config {
@@ -28,6 +29,7 @@ func DefaultConfig() Config {
 		QuitHotkey:   KeyBinding{Modifier: "Alt", Key: "Q"},
 		AutoStart:    false,
 		StartHidden:  false,
+		ThemeName:    "system",
 	}
 }
 
@@ -72,6 +74,7 @@ func (c *Config) Normalize() {
 	defaults := DefaultConfig()
 	c.ToggleHotkey = normalizeKeyBinding(c.ToggleHotkey, defaults.ToggleHotkey)
 	c.QuitHotkey = normalizeKeyBinding(c.QuitHotkey, defaults.QuitHotkey)
+	c.ThemeName = normalizeThemeName(c.ThemeName, defaults.ThemeName)
 }
 
 func normalizeKeyBinding(binding, fallback KeyBinding) KeyBinding {
@@ -111,6 +114,16 @@ func normalizeKey(value string) string {
 		return ""
 	}
 	return value
+}
+
+func normalizeThemeName(value, fallback string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	switch normalized {
+	case "system", "light", "dark", "ocean", "forest", "contrast", "paper", "pastel", "solar", "midnight":
+		return normalized
+	default:
+		return fallback
+	}
 }
 
 func configPath() (string, error) {

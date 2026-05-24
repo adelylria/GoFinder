@@ -15,4 +15,7 @@ func TestNormalizeConfig(t *testing.T) {
 	if cfg.QuitHotkey != DefaultConfig().QuitHotkey {
 		t.Fatalf("unexpected quit fallback: %#v", cfg.QuitHotkey)
 	}
+	if cfg.ThemeName != DefaultConfig().ThemeName {
+		t.Fatalf("unexpected theme fallback: %q", cfg.ThemeName)
+	}
 }
