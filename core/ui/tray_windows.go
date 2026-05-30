@@ -8,12 +8,11 @@ import (
 	"fyne.io/systray"
 	"github.com/adelylria/GoFinder/core/i18n"
 	"github.com/adelylria/GoFinder/core/singleinstance"
-	"github.com/adelylria/GoFinder/models"
 )
 
 var trayOnce sync.Once
 
-func startSystemTray(state *models.AppState, icon []byte) {
+func startSystemTray(state *AppState, icon []byte) {
 	if !singleinstance.IsOwner() {
 		return
 	}
@@ -27,7 +26,7 @@ func startSystemTray(state *models.AppState, icon []byte) {
 	})
 }
 
-func setupSystemTray(state *models.AppState, icon []byte) {
+func setupSystemTray(state *AppState, icon []byte) {
 	if len(icon) > 0 {
 		systray.SetIcon(icon)
 	}

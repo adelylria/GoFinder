@@ -1,9 +1,6 @@
 package models
 
 import (
-	"sync"
-
-	"fyne.io/fyne/v2"
 	"github.com/google/uuid"
 )
 
@@ -14,12 +11,6 @@ type Application struct {
 	Icon     string
 	IconPath string
 	IconIdx  int
-}
-
-type AppState struct {
-	Window  fyne.Window
-	Visible bool
-	Mu      sync.Mutex
 }
 
 func NewApplication() Application {
