@@ -3,6 +3,8 @@ package hotkey
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/adelylria/GoFinder/models"
 )
 
 type HotkeyManager struct {
@@ -19,18 +21,15 @@ func (hm *HotkeyManager) SetMenuHandlers(prefs, about func()) {
 	hm.AboutHandler = about
 }
 
-type KeyBinding struct {
-	Modifier string
-	Key      string
-}
+type KeyBinding = models.KeyBinding
 
 type KeyEventInterceptor struct {
 	widget.Entry
-	OnKeyDown    func()
-	OnKeyUp      func()
-	OnMenuQuit   func()
-	OnMenuPrefs  func()
-	OnMenuAbout  func()
+	OnKeyDown   func()
+	OnKeyUp     func()
+	OnMenuQuit  func()
+	OnMenuPrefs func()
+	OnMenuAbout func()
 }
 
 // NewKeyEventInterceptor crea el Entry personalizado para eventos de teclado

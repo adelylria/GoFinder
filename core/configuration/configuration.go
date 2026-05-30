@@ -6,14 +6,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/adelylria/GoFinder/models"
 )
 
 const appName = "GoFinder"
 
-type KeyBinding struct {
-	Modifier string `json:"modifier"`
-	Key      string `json:"key"`
-}
+type KeyBinding = models.KeyBinding
 
 type Config struct {
 	ToggleHotkey KeyBinding `json:"toggle_hotkey"`
