@@ -192,15 +192,6 @@ func themeOptions() []string {
 	return []string{"system", "light", "dark", "paper", "pastel", "solar", "ocean", "forest", "midnight", "contrast"}
 }
 
-func themeOptionLabels() []string {
-	options := themeOptions()
-	labels := make([]string, 0, len(options))
-	for _, option := range options {
-		labels = append(labels, themeLabel(option))
-	}
-	return labels
-}
-
 func themeLabel(name string) string {
 	switch name {
 	case "light":
