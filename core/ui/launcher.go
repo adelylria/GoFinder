@@ -10,6 +10,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
@@ -44,7 +45,11 @@ type Launcher struct {
 	// prevContent stores the previous window content when navigating to settings
 	prevContent fyne.CanvasObject
 	// settingsOpen indicates whether the settings view is currently shown
-	settingsOpen bool
+	settingsOpen         bool
+	settingsToast        fyne.CanvasObject
+	settingsToastBg      *canvas.Rectangle
+	settingsToastLabel   *widget.Label
+	settingsToastVersion uint64
 }
 
 // NewLauncher crea el lanzador e inyecta el theme core.
@@ -70,7 +75,7 @@ func NewLauncher(apps []models.Application) *Launcher {
 
 	appMap := createAppMap(apps)
 
-	appState := &models.AppState{
+	appState := &AppState{
 		Window:  window,
 		Visible: !cfg.StartHidden,
 	}
@@ -78,8 +83,8 @@ func NewLauncher(apps []models.Application) *Launcher {
 	hm := hotkey.NewHotkeyManager(
 		func() { toggleWindowVisibility(appState) },
 		quitApplication,
-		toHotkeyBinding(cfg.ToggleHotkey),
-		toHotkeyBinding(cfg.QuitHotkey),
+		cfg.ToggleHotkey,
+		cfg.QuitHotkey,
 	)
 
 	singleinstance.SetActivationHandler(func() {
@@ -319,7 +324,7 @@ func RunLauncher(apps []models.Application) {
 	launcher.Run()
 }
 
-func toggleWindowVisibility(state *models.AppState) {
+func toggleWindowVisibility(state *AppState) {
 	state.Mu.Lock()
 	shouldShow := !state.Visible
 	state.Mu.Unlock()
@@ -327,7 +332,7 @@ func toggleWindowVisibility(state *models.AppState) {
 	setWindowVisible(state, shouldShow)
 }
 
-func setWindowVisible(state *models.AppState, visible bool) {
+func setWindowVisible(state *AppState, visible bool) {
 	state.Mu.Lock()
 	if state.Visible == visible {
 		state.Mu.Unlock()
@@ -350,13 +355,6 @@ func quitApplication() {
 	fmt.Println(i18n.T(i18n.AppExitMessage))
 	singleinstance.Release()
 	os.Exit(0)
-}
-
-func toHotkeyBinding(binding configuration.KeyBinding) hotkey.KeyBinding {
-	return hotkey.KeyBinding{
-		Modifier: binding.Modifier,
-		Key:      binding.Key,
-	}
 }
 
 func letterOptions() []string {
