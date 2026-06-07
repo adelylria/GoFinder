@@ -16,8 +16,10 @@ var (
 
 	//go:embed assets/GoFinder.ico
 	appIconBytes []byte
-	once         sync.Once
-	cachedRes    fyne.Resource
+	//go:embed assets/github.svg
+	githubIconBytes []byte
+	once            sync.Once
+	cachedRes       fyne.Resource
 )
 
 func GetIcon(iconPath, iconName string) fyne.Resource {
@@ -44,4 +46,11 @@ func GetEmbedAppIconBytes() []byte {
 		return nil
 	}
 	return append([]byte(nil), appIconBytes...)
+}
+
+func GetEmbedGithubIcon() fyne.Resource {
+	if len(githubIconBytes) == 0 {
+		return nil
+	}
+	return fyne.NewStaticResource("github.svg", githubIconBytes)
 }
