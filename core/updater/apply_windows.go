@@ -16,10 +16,24 @@ func ApplyDownloadedUpdate(downloadPath string) error {
 		return err
 	}
 
-	scriptPath := filepath.Join(os.TempDir(), "gofinder-apply-update.ps1")
-	if err := os.WriteFile(scriptPath, []byte(updateScript()), 0o600); err != nil {
+	// Create a secure, unpredictable temporary script path.
+	tmpScript, err := os.CreateTemp(os.TempDir(), "gofinder-apply-*.ps1")
+	if err != nil {
 		return err
 	}
+	scriptPath := tmpScript.Name()
+	// Write the script content and close the file.
+	if _, err := tmpScript.WriteString(updateScript()); err != nil {
+		tmpScript.Close()
+		_ = os.Remove(scriptPath)
+		return err
+	}
+	if err := tmpScript.Close(); err != nil {
+		_ = os.Remove(scriptPath)
+		return err
+	}
+	// Attempt to set restrictive permissions; on Windows these calls are best-effort.
+	_ = os.Chmod(scriptPath, 0o600)
 
 	// Prefer the system PowerShell executable by full path (under %SystemRoot%\System32),
 	// and ensure the child process gets a safe PATH containing only system directories

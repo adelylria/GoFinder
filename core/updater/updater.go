@@ -7,11 +7,9 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/adelylria/GoFinder/core/version"
 )
@@ -72,17 +70,20 @@ func Download(ctx context.Context, downloadURL string) (string, error) {
 		return "", fmt.Errorf("download failed: %s", resp.Status)
 	}
 
-	target := filepath.Join(os.TempDir(), "gofinder-update-"+strconv.FormatInt(time.Now().UnixNano(), 10)+".exe")
-	out, err := os.Create(target)
+	// Create a secure, unpredictable temporary file for the download
+	tmpFile, err := os.CreateTemp(os.TempDir(), "gofinder-update-*.exe")
 	if err != nil {
 		return "", err
 	}
-	defer out.Close()
+	defer tmpFile.Close()
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+		// Attempt to remove the temp file on error
+		_ = os.Remove(tmpFile.Name())
 		return "", err
 	}
-	return target, nil
+
+	return tmpFile.Name(), nil
 }
 
 func fetchLatestRelease(ctx context.Context) (releaseResponse, error) {
