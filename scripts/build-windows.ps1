@@ -13,5 +13,22 @@ if ($LASTEXITCODE -ne 0) {
 $env:GOOS = "windows"
 $env:GOARCH = "amd64"
 
-& go build -ldflags="-H=windowsgui -s -w" -o "build/goFinder.exe" "./cmd"
+$version = $env:GOFINDER_VERSION
+if ([string]::IsNullOrWhiteSpace($version)) {
+	$version = (& git describe --tags --always --dirty 2>$null)
+	if ([string]::IsNullOrWhiteSpace($version)) {
+		$version = "dev"
+	}
+}
+
+$versionPackage = "github.com/adelylria/GoFinder/core/version.Version"
+$commit = (& git rev-parse --short HEAD 2>$null)
+if ([string]::IsNullOrWhiteSpace($commit)) {
+	$commit = "unknown"
+}
+$buildDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+$commitPackage = "github.com/adelylria/GoFinder/core/version.Commit"
+$buildDatePackage = "github.com/adelylria/GoFinder/core/version.BuildDate"
+
+& go build -ldflags="-H=windowsgui -s -w -X '$versionPackage=$version' -X '$commitPackage=$commit' -X '$buildDatePackage=$buildDate'" -o "build/goFinder.exe" "./cmd"
 exit $LASTEXITCODE
