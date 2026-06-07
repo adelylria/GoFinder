@@ -26,6 +26,12 @@ func (l *Launcher) showSettingsHome() {
 			theme.SettingsIcon(),
 			l.showConfigurationSettings,
 		),
+		l.settingsNavCard(
+			i18n.T(i18n.SettingsUpdates),
+			i18n.T(i18n.SettingsUpdatesDesc),
+			theme.InfoIcon(),
+			l.showUpdateSettings,
+		),
 	)
 
 	l.setSettingsRootContent(i18n.T(i18n.MenuPreferences), body)
