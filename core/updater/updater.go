@@ -126,7 +126,11 @@ func pickReleaseAsset(assets []releaseAsset) releaseAsset {
 	return releaseAsset{}
 }
 
-func isNewerVersion(latest string, current string) bool {
+// isNewerVersion compares two semantic-style versions (e.g. "v1.2.3" or "1.2.3").
+// It normalizes inputs (strips leading 'v' and any pre-release/build suffixes)
+// and treats missing or non-numeric versions as non-comparable (returns false).
+// Parameters are grouped when of the same type for conciseness: `latest, current string`.
+func isNewerVersion(latest, current string) bool {
 	current = normalizeVersion(current)
 	latest = normalizeVersion(latest)
 	if current == "" || current == "dev" || latest == "" {
