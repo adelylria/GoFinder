@@ -21,8 +21,17 @@ func ApplyDownloadedUpdate(downloadPath string) error {
 		return err
 	}
 
+	// Prefer the system PowerShell executable by full path (under %SystemRoot%\System32),
+	// and ensure the child process gets a safe PATH containing only system directories
+	systemRoot := os.Getenv("SystemRoot")
+	powPath := filepath.Join(systemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+	powExe := "powershell"
+	if _, err := os.Stat(powPath); err == nil {
+		powExe = powPath
+	}
+
 	cmd := exec.Command(
-		"powershell",
+		powExe,
 		"-NoProfile",
 		"-ExecutionPolicy",
 		"Bypass",
@@ -34,6 +43,20 @@ func ApplyDownloadedUpdate(downloadPath string) error {
 		exePath,
 		strconv.Itoa(os.Getpid()),
 	)
+
+	// Restrict PATH to System32 and PowerShell folder only (these are non-writable by standard users)
+	if systemRoot == "" {
+		systemRoot = "C:\\Windows"
+	}
+	safePath := filepath.Join(systemRoot, "System32") + ";" + filepath.Join(systemRoot, "System32", "WindowsPowerShell", "v1.0")
+	// Preserve other minimal env variables if helpful
+	cmd.Env = append([]string{
+		"PATH=" + safePath,
+		"SystemRoot=" + systemRoot,
+	}, os.Environ()...)
+	// Start the process from temp dir
+	cmd.Dir = os.TempDir()
+
 	return cmd.Start()
 }
 
