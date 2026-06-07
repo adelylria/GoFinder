@@ -198,4 +198,9 @@ func (c *settingsCardButton) Tapped(*fyne.PointEvent) {
 	c.onTap()
 }
 
-func (c *settingsCardButton) TappedSecondary(*fyne.PointEvent) {}
+func (c *settingsCardButton) TappedSecondary(*fyne.PointEvent) {
+	// Intentionally empty: secondary (right-click) taps are ignored for
+	// settings card buttons to avoid showing a context menu or performing
+	// alternate actions. Handling primary taps via `Tapped` is sufficient
+	// for this control's UX and keeps behavior consistent across platforms.
+}
